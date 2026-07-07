@@ -634,8 +634,10 @@ def init_db(reset=False):
             "INSERT INTO conversion_settings (account_id,source,source_metric,solution_metric,value_type) VALUES (?,?,?,?,?)",
             (acc, src, sm, sol, vt),
         )
-    # media_metric_map (매체연동 매핑) — acc1 기본 매핑
-    for media in SEED_MEDIA_MAP_MEDIA:
+    # media_metric_map (매체연동 매핑) — acc1 기본 매핑 (acc1이 존재할 때만)
+    _acc1 = conn.execute("SELECT 1 FROM accounts WHERE id='acc1'").fetchone()
+    if _acc1:
+        for media in SEED_MEDIA_MAP_MEDIA:
         fields = MEDIA_PROVIDER_FIELDS.get(media, ["", "", "", "", ""])
         for (mk, sol), pf in zip(METRIC_KEYS, fields):
             conn.execute(
@@ -688,9 +690,10 @@ def init_db(reset=False):
                         ("acc1", d, media_key, "all", ptype, mk2, round(total * ratio, 2)),
                     )
 
-    # ── Ph E: report_config 시드 (acc1 기본 리포트) ──
-    import json as _json
-    conn.execute(
+    # ── Ph E: report_config 시드 (acc1 기본 리포트, acc1이 존재할 때만) ──
+    if _acc1:
+        import json as _json
+        conn.execute(
         "INSERT INTO report_config (account_id,name,columns_json,media_json,update_cycle) VALUES (?,?,?,?,?)",
         ("acc1", "일간 매체 성과 리포트",
          _json.dumps(["date","media","cost","imp","click","conv","revenue","ctr","cpc","roas"]),
