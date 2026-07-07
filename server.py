@@ -2167,8 +2167,8 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     db.init_db()
-    srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    print(f"[api] DeepFle 백엔드 실행 중 → http://127.0.0.1:{PORT}")
+    srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+    print(f"[api] DeepFle 백엔드 실행 중 → http://0.0.0.0:{PORT}")
     print(f"[api] 관리자 계정: admin@deepfle.io / admin123")
     try:
         srv.serve_forever()
