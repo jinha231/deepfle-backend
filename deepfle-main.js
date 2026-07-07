@@ -638,8 +638,8 @@ async function sgSendVerify() {
       if(statusEl) statusEl.innerHTML=`<span style="color:#64748B;">${email}으로 인증코드를 발송했습니다. 메일함을 확인해주세요.</span>`;
       showToast('인증코드를 이메일로 발송했습니다','success');
     } else {
-      if(statusEl) statusEl.innerHTML=`<span style="color:#EF4444;">이메일 발송에 실패했습니다. 관리자에게 SMTP 설정을 요청하거나 서버 환경변수(SMTP_HOST)를 확인해주세요.</span>`;
-      showToast('이메일 발송 실패: SMTP 서버 미설정','error');
+      if(statusEl) statusEl.innerHTML=`<span style="color:#EF4444;">이메일 발송에 실패했습니다. 관리자에게 EmailJS 설정(EMAILJS_SERVICE_ID/PUBLIC_KEY/TEMPLATE_VERIFY)을 요청해주세요.</span>`;
+      showToast('이메일 발송 실패: EmailJS 환경변수 미설정','error');
     }
   } catch(e) {
     if(statusEl) statusEl.innerHTML=`<span style="color:#EF4444;">서버 연결 실패. 백엔드가 실행 중인지 확인해주세요.</span>`;
