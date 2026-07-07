@@ -638,12 +638,12 @@ def init_db(reset=False):
     _acc1 = conn.execute("SELECT 1 FROM accounts WHERE id='acc1'").fetchone()
     if _acc1:
         for media in SEED_MEDIA_MAP_MEDIA:
-        fields = MEDIA_PROVIDER_FIELDS.get(media, ["", "", "", "", ""])
-        for (mk, sol), pf in zip(METRIC_KEYS, fields):
-            conn.execute(
-                "INSERT INTO media_metric_map (account_id,media,metric_key,provider_field,solution_name) VALUES (?,?,?,?,?)",
-                ("acc1", media, mk, pf, sol),
-            )
+            fields = MEDIA_PROVIDER_FIELDS.get(media, ["", "", "", "", ""])
+            for (mk, sol), pf in zip(METRIC_KEYS, fields):
+                conn.execute(
+                    "INSERT INTO media_metric_map (account_id,media,metric_key,provider_field,solution_name) VALUES (?,?,?,?,?)",
+                    ("acc1", media, mk, pf, sol),
+                )
 
     # metric_data 시드 제거 — 실제 API 연동 후 pull_metric_data로 수집
 
@@ -694,12 +694,12 @@ def init_db(reset=False):
     if _acc1:
         import json as _json
         conn.execute(
-        "INSERT INTO report_config (account_id,name,columns_json,media_json,update_cycle) VALUES (?,?,?,?,?)",
-        ("acc1", "일간 매체 성과 리포트",
-         _json.dumps(["date","media","cost","imp","click","conv","revenue","ctr","cpc","roas"]),
-         _json.dumps(["meta","google","naver_sa","kakao"]),
-         "daily"),
-    )
+            "INSERT INTO report_config (account_id,name,columns_json,media_json,update_cycle) VALUES (?,?,?,?,?)",
+            ("acc1", "일간 매체 성과 리포트",
+             _json.dumps(["date","media","cost","imp","click","conv","revenue","ctr","cpc","roas"]),
+             _json.dumps(["meta","google","naver_sa","kakao"]),
+             "daily"),
+        )
 
     conn.commit()
     conn.close()
