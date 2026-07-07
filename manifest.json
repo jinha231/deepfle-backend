@@ -1,0 +1,20 @@
+{
+  "name": "DeepFle — 광고 성과 분석 플랫폼",
+  "short_name": "DeepFle",
+  "description": "9개 매체 통합 광고 성과 분석 및 자동화 플랫폼",
+  "start_url": "./deepfle-dashboard.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0F172A",
+  "theme_color": "#4F46E5",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "./deepfle-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
