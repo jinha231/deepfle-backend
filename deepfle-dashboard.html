@@ -439,16 +439,6 @@ tr:hover td{background:var(--gray-50);}
 /* User management table */
 .user-role-select{padding:4px 8px;border:1.5px solid var(--gray-200);border-radius:6px;font-size:12px;outline:none;background:#fff;}
 
-/* ===== OPTIMIZATION ===== */
-.rule-builder{background:var(--primary-light);border:1.5px dashed var(--accent);border-radius:12px;padding:18px;margin-bottom:18px;}
-.rule-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
-.rule-select{padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:12px;background:#fff;outline:none;}
-.rule-card{background:#fff;border-radius:11px;padding:14px 18px;border:1px solid var(--gray-200);display:flex;align-items:center;gap:12px;margin-bottom:8px;transition:.2s;}
-.rule-card:hover{border-color:var(--accent);}
-.rule-name{font-size:13px;font-weight:700;flex:1;}
-.rule-desc{font-size:11px;color:var(--gray-400);margin-top:2px;}
-.rule-log{background:var(--gray-50);border-radius:7px;padding:8px 12px;margin-top:8px;font-size:11px;color:var(--gray-600);line-height:1.7;}
-
 /* ===== REPORTING ===== */
 .report-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
 .report-card{background:#fff;border-radius:12px;padding:18px;border:1px solid var(--gray-200);cursor:pointer;transition:.2s;}
@@ -457,42 +447,6 @@ tr:hover td{background:var(--gray-50);}
 .rep-mini{flex:1;background:var(--gray-50);border-radius:7px;padding:8px;text-align:center;}
 .rep-mini-num{font-size:14px;font-weight:800;color:var(--primary);}
 .rep-mini-label{font-size:10px;color:var(--gray-400);margin-top:2px;}
-
-/* ===== ATTRIBUTION ===== */
-.link-url{font-size:11px;color:var(--primary);background:var(--primary-light);padding:3px 8px;border-radius:5px;font-family:monospace;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;}
-.copy-btn{padding:5px 10px;background:var(--primary-light);color:var(--primary);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;transition:.2s;border:none;}
-.copy-btn:hover{background:var(--primary);color:#fff;}
-
-/* ===== AUDIENCE ===== */
-.audience-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.audience-card{background:#fff;border-radius:12px;padding:18px;border:1px solid var(--gray-200);transition:.2s;}
-.audience-card:hover{border-color:var(--accent);}
-.plat-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:100px;background:var(--gray-100);color:var(--gray-600);}
-
-/* ===== PHASE 2: RULE LOG ===== */
-.log-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
-.log-kpi{background:#fff;border-radius:11px;padding:16px;border:1px solid var(--gray-200);text-align:center;}
-.log-kpi-num{font-size:22px;font-weight:800;margin-bottom:4px;}
-.log-kpi-label{font-size:11px;color:var(--gray-400);}
-.log-timeline{position:relative;padding-left:28px;}
-.log-timeline::before{content:'';position:absolute;left:10px;top:4px;bottom:4px;width:2px;background:var(--gray-200);}
-.log-item{position:relative;margin-bottom:14px;}
-.log-dot{position:absolute;left:-22px;top:4px;width:12px;height:12px;border-radius:50%;border:2px solid #fff;flex-shrink:0;}
-.log-dot.success{background:var(--success);}
-.log-dot.warning{background:var(--warning);}
-.log-dot.info{background:var(--primary);}
-.log-card{background:#fff;border-radius:10px;padding:14px 16px;border:1px solid var(--gray-200);}
-.log-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
-.log-rule-name{font-size:13px;font-weight:700;}
-.log-time{font-size:11px;color:var(--gray-400);}
-.log-detail{font-size:12px;color:var(--gray-600);line-height:1.6;}
-.log-affected{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
-.log-chip{font-size:10px;padding:2px 8px;border-radius:100px;font-weight:600;}
-.log-chip.stopped{background:#FEE2E2;color:#DC2626;}
-.log-chip.decreased{background:#FEF3C7;color:#D97706;}
-.log-chip.increased{background:#DCFCE7;color:#16A34A;}
-.log-chip.notified{background:#DBEAFE;color:#1D4ED8;}
-.log-saving{background:linear-gradient(135deg,#DCFCE7,#F0FDF4);border:1px solid #A7F3D0;border-radius:9px;padding:10px 14px;font-size:12px;color:#065F46;display:flex;align-items:center;gap:8px;margin-top:8px;}
 
 /* ===== PHASE 2: REPORT VIEWER ===== */
 .report-viewer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;justify-content:flex-end;}
@@ -517,25 +471,6 @@ tr:hover td{background:var(--gray-50);}
 .export-btn{display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--gray-200);background:#fff;color:var(--gray-600);transition:.2s;}
 .export-btn:hover{border-color:var(--primary);color:var(--primary);}
 
-/* ===== PHASE 2: ATTRIBUTION DETAIL ===== */
-.attr-detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;justify-content:flex-end;}
-.attr-detail-overlay.open{display:flex;}
-.attr-detail{width:min(720px,92vw);background:#fff;height:100vh;overflow-y:auto;box-shadow:-8px 0 40px rgba(0,0,0,.15);display:flex;flex-direction:column;}
-.ad-header{padding:18px 22px;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:10;}
-.ad-title{font-size:15px;font-weight:700;}
-.ad-body{padding:20px 22px;flex:1;}
-.funnel-wrap{display:flex;flex-direction:column;gap:6px;margin:16px 0;}
-.funnel-step{display:flex;align-items:center;gap:12px;}
-.funnel-bar-wrap{flex:1;background:var(--gray-100);border-radius:100px;height:24px;overflow:hidden;}
-.funnel-bar{height:100%;border-radius:100px;display:flex;align-items:center;padding-left:10px;font-size:11px;font-weight:700;color:#fff;transition:width .8s ease;}
-.funnel-label{font-size:12px;font-weight:600;width:60px;text-align:right;}
-.funnel-val{font-size:12px;color:var(--gray-600);width:80px;}
-.funnel-rate{font-size:11px;color:var(--gray-400);width:50px;}
-.utm-table{width:100%;border-collapse:collapse;}
-.utm-table td{padding:8px 10px;border-bottom:1px solid var(--gray-100);font-size:12px;}
-.utm-table td:first-child{font-weight:600;color:var(--gray-600);width:130px;}
-.utm-val{font-family:monospace;background:var(--gray-50);padding:2px 6px;border-radius:4px;}
-
 /* ===== WORKSPACE ===== */
 .ws-layout{display:grid;grid-template-columns:1fr 300px;gap:16px;}
 .act-item{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--gray-100);}
@@ -546,44 +481,9 @@ tr:hover td{background:var(--gray-50);}
 .act-time{font-size:11px;color:var(--gray-400);}
 .act-text{font-size:12px;color:var(--gray-600);line-height:1.6;}
 
-/* ===== PHASE 3: SEGMENT BUILDER ===== */
-.seg-builder{background:var(--gray-50);border-radius:10px;padding:14px;margin-bottom:14px;}
-.seg-group{background:#fff;border:1.5px solid var(--gray-200);border-radius:9px;padding:12px;margin-bottom:10px;position:relative;}
-.seg-group-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-.seg-group-label{font-size:11px;font-weight:700;color:var(--gray-600);}
-.seg-andor{display:inline-flex;background:var(--gray-100);border-radius:6px;padding:2px;}
-.seg-andor-btn{padding:3px 12px;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;color:var(--gray-400);transition:.15s;}
-.seg-andor-btn.active{background:var(--primary);color:#fff;}
-.seg-cond{display:flex;align-items:center;gap:6px;margin-bottom:7px;}
-.seg-cond:last-of-type{margin-bottom:0;}
-.seg-select{padding:7px 9px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:12px;background:#fff;outline:none;}
-.seg-select:focus{border-color:var(--primary);}
-.seg-cond-remove{width:24px;height:24px;border-radius:6px;background:var(--gray-100);color:var(--gray-400);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0;}
-.seg-cond-remove:hover{background:#FEE2E2;color:var(--danger);}
-.seg-add-cond{font-size:11px;color:var(--primary);font-weight:600;cursor:pointer;margin-top:8px;display:inline-flex;align-items:center;gap:3px;}
-.seg-reach{background:linear-gradient(135deg,var(--primary-light),#F0FDF4);border:1px solid #C7D2FE;border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
-.seg-reach-label{font-size:11px;color:var(--gray-600);font-weight:600;}
-.seg-reach-num{font-size:24px;font-weight:800;color:var(--primary);}
-.seg-reach-bar{width:100%;height:6px;background:#fff;border-radius:100px;overflow:hidden;margin-top:6px;}
-.seg-reach-fill{height:100%;background:linear-gradient(90deg,var(--primary),var(--accent));border-radius:100px;transition:width .5s ease;}
-.seg-val-wrap{flex:1;min-width:120px;}
-.seg-multicheck,.seg-radio-group{display:flex;flex-wrap:wrap;gap:5px;}
-.seg-check-lbl{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 9px;border:1px solid var(--gray-200);border-radius:20px;cursor:pointer;background:#fff;user-select:none;transition:.15s;white-space:nowrap;}
-.seg-check-lbl:has(input:checked){border-color:var(--primary);background:var(--primary-light);color:var(--primary);font-weight:600;}
-.seg-check-lbl input{display:none;}
-.seg-period-wrap{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-600);}
-.seg-period-input{width:52px;padding:5px 7px;border:1.5px solid var(--gray-200);border-radius:6px;font-size:12px;text-align:center;outline:none;}
-.seg-period-input:focus{border-color:var(--primary);}
-
 /* Sync status */
 .sync-dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;}
 .sync-dot.synced{background:var(--success);box-shadow:0 0 0 3px rgba(16,185,129,.15);}
-.sync-dot.syncing{background:var(--warning);animation:pulse 1.2s infinite;}
-.sync-dot.error{background:var(--danger);}
-.sync-dot.idle{background:var(--gray-200);}
-@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
-.sync-platform-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;font-size:11px;}
-.sync-status-text{display:flex;align-items:center;gap:5px;color:var(--gray-400);}
 
 /* ===== PHASE 3: WORKSPACE COMMENTS ===== */
 .comment-item{display:flex;gap:8px;}
@@ -660,7 +560,7 @@ tr:hover td{background:var(--gray-50);}
   .rv-kpi-grid{grid-template-columns:repeat(3,1fr);}
   .rv-chart-row{grid-template-columns:1fr;}
   .ws-layout{grid-template-columns:1fr;}
-  .account-grid,.report-grid,.audience-grid{grid-template-columns:repeat(2,1fr);}
+  .account-grid,.report-grid{grid-template-columns:repeat(2,1fr);}
 }
 
 /* 태블릿 세로 / 모바일 (≤900px) — 사이드바 드로어 전환 */
@@ -673,8 +573,7 @@ tr:hover td{background:var(--gray-50);}
   .content-area{padding:16px;}
   .kpi-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
   .role-indicator span{display:none;}
-  .report-viewer,.attr-detail{width:100vw;}
-  .seg-cond{flex-wrap:wrap;}
+  .report-viewer{width:100vw;}
 }
 
 /* 모바일 (≤640px) */
@@ -686,20 +585,16 @@ tr:hover td{background:var(--gray-50);}
   .kpi-grid{grid-template-columns:1fr 1fr;gap:8px;}
   .kpi-card{padding:13px;}
   .kpi-val{font-size:18px;}
-  .account-grid,.report-grid,.audience-grid{grid-template-columns:1fr;}
+  .account-grid,.report-grid{grid-template-columns:1fr;}
   .rv-kpi-grid{grid-template-columns:repeat(2,1fr);}
-  .rv-header,.ad-header{padding:14px 16px;}
+  .rv-header{padding:14px 16px;}
   .rv-actions .export-btn span{display:none;}
-  .rv-body,.ad-body{padding:16px;}
+  .rv-body{padding:16px;}
   .modal{max-width:94vw;margin:0 8px;}
   .section-title{font-size:14px;}
   .tab-pills{flex-wrap:wrap;}
   table{font-size:12px;}
   th,td{padding:8px 8px;}
-  .funnel-label{width:46px;font-size:11px;}
-  .funnel-val{width:60px;font-size:11px;}
-  .funnel-rate{width:40px;}
-  .seg-reach-num{font-size:20px;}
   .oauth-logo-box{width:48px;height:48px;font-size:20px;}
 }
 </style>
@@ -892,26 +787,6 @@ tr:hover td{background:var(--gray-50);}
 
       </div>
 
-      <!-- ===== OPTIMIZATION ===== -->
-      <div id="panel-optimization" class="dash-panel">
-        <div id="optimReadonlyBanner"></div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-          <div class="tab-pills" id="optimTabPills">
-            <div class="tab-pill active" onclick="switchOptimTab(this,'rules')">규칙 목록</div>
-            <div class="tab-pill" onclick="switchOptimTab(this,'log')">실행 로그</div>
-          </div>
-          <div id="optimActions"></div>
-        </div>
-        <div id="optimTab-rules">
-          <div id="ruleBuilderArea"></div>
-          <div id="ruleList"></div>
-        </div>
-        <div id="optimTab-log" style="display:none;">
-          <div class="log-kpi-grid" id="logKpiGrid"></div>
-          <div class="log-timeline" id="logTimeline"></div>
-        </div>
-      </div>
-
       <!-- ===== CUSTOM REPORT ===== -->
       <div id="panel-reporting" class="dash-panel">
         <div class="section-header">
@@ -926,39 +801,6 @@ tr:hover td{background:var(--gray-50);}
         <div class="report-viewer" id="reportViewerPanel"></div>
       </div>
 
-      <!-- ===== ATTRIBUTION ===== -->
-      <div id="panel-attribution" class="dash-panel">
-        <div id="attrReadonlyBanner"></div>
-        <div class="section-header">
-          <div class="section-title">추적 링크 관리</div>
-          <div id="attrActions"></div>
-        </div>
-        <div id="attrCreateArea"></div>
-        <div class="card">
-          <div class="card-header"><div class="card-title">생성된 링크 목록</div></div>
-          <div style="overflow-x:auto;">
-            <table>
-              <thead><tr><th>캠페인명</th><th>매체</th><th>추적 URL</th><th class="text-right">클릭</th><th class="text-right">전환</th><th class="text-right">전환율</th><th>생성일</th><th></th></tr></thead>
-              <tbody id="linkTable"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Attribution Detail Drawer -->
-      <div class="attr-detail-overlay" id="attrDetailOverlay" onclick="closeAttrDetail(event)">
-        <div class="attr-detail" id="attrDetailPanel"></div>
-      </div>
-
-      <!-- ===== AUDIENCE ===== -->
-      <div id="panel-audience" class="dash-panel">
-        <div id="audReadonlyBanner"></div>
-        <div class="section-header">
-          <div class="section-title">오디언스 목록</div>
-          <div id="audActions"></div>
-        </div>
-        <div class="audience-grid" id="audienceGrid"></div>
-      </div>
 
       <!-- ===== WORKSPACE ===== -->
       <div id="panel-workspace" class="dash-panel">
@@ -1352,77 +1194,6 @@ tr:hover td{background:var(--gray-50);}
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-ruleCreate">
-  <div class="modal">
-    <div class="modal-header"><div class="modal-title">규칙 만들기</div><button class="modal-close" onclick="closeModal('ruleCreate')">×</button></div>
-    <div class="modal-body">
-      <div class="form-group"><label class="form-label">규칙 이름</label><input class="form-input" id="ruleNameInput" placeholder="예) 광고비 초과 자동 중지"></div>
-      <div class="form-group"><label class="form-label">적용 레벨</label><select class="form-select" id="ruleLevelInput"><option>캠페인</option><option>광고세트</option><option>소재</option></select></div>
-      <div style="background:var(--gray-50);border-radius:9px;padding:14px;margin-bottom:14px;">
-        <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:var(--gray-600);">조건 설정</div>
-        <div class="rule-row">
-          <select class="rule-select" id="ruleCondMetric"><option>광고비</option><option>ROAS</option><option>CPA</option><option>클릭수</option></select>
-          <select class="rule-select" id="ruleCondOp"><option>≥ 이상</option><option>≤ 이하</option><option>= 같음</option></select>
-          <input class="rule-select" id="ruleCondVal" type="number" placeholder="100000" style="width:110px;">
-        </div>
-      </div>
-      <div class="form-group"><label class="form-label">실행 액션</label><select class="form-select" id="ruleActionInput"><option>광고 일시정지</option><option>예산 10% 감소</option><option>예산 10% 증가</option><option>이메일 알림</option></select></div>
-      <div class="form-group"><label class="form-label">실행 스케줄</label><select class="form-select" id="ruleScheduleInput"><option>실시간</option><option>매시간</option><option>매일 오전 9시</option></select></div>
-      <button class="btn btn-primary" style="width:100%;margin-top:4px;" onclick="addRuleFromModal()">저장</button>
-    </div>
-  </div>
-</div>
-
-
-<div class="modal-overlay" id="modal-linkCreate">
-  <div class="modal">
-    <div class="modal-header"><div class="modal-title">추적 링크 생성</div><button class="modal-close" onclick="closeModal('linkCreate')">×</button></div>
-    <div class="modal-body">
-      <div class="form-group"><label class="form-label">캠페인명</label><input class="form-input" id="lcName" placeholder="1월_신제품_카카오"></div>
-      <div class="form-group"><label class="form-label">원본 URL</label><input class="form-input" id="lcUrl" placeholder="https://"></div>
-      <div class="form-group"><label class="form-label">매체</label><select class="form-select" id="lcMedia"><option>카카오</option><option>네이버</option><option>구글</option><option>메타</option></select></div>
-      <button class="btn btn-primary" style="width:100%;margin-top:4px;" onclick="addLink()">생성</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="modal-audienceCreate">
-  <div class="modal" style="max-width:560px;">
-    <div class="modal-header"><div class="modal-title">오디언스 세그먼트 빌더</div><button class="modal-close" onclick="closeModal('audienceCreate')">×</button></div>
-    <div class="modal-body">
-      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:10px;">
-        <div class="form-group"><label class="form-label">오디언스명</label><input class="form-input" id="audName" placeholder="구매자_30대_여성" oninput="recalcReach()"></div>
-        <div class="form-group"><label class="form-label">타입</label><select class="form-select" id="audType" onchange="_onAudTypeChange();recalcReach()"><option>방문자</option><option>구매자</option><option>유사 타겟</option><option>커스텀</option></select></div>
-      </div>
-
-      <!-- 실시간 도달 규모 -->
-      <div class="seg-reach">
-        <div style="flex:1;">
-          <div class="seg-reach-label">예상 도달 규모</div>
-          <div class="seg-reach-num" id="segReachNum">약 0명</div>
-          <div class="seg-reach-bar"><div class="seg-reach-fill" id="segReachFill" style="width:0%"></div></div>
-        </div>
-        <div style="font-size:11px;color:var(--gray-400);text-align:right;margin-left:14px;">전체 모수<br><strong style="font-size:14px;color:var(--gray-600);">1,240,000명</strong></div>
-      </div>
-
-      <!-- 세그먼트 조건 빌더 -->
-      <div id="segBuilderSec">
-        <label class="form-label">세그먼트 조건</label>
-        <div class="seg-builder" id="segBuilder"></div>
-        <span class="seg-add-cond" onclick="addSegCondition()">+ 조건 추가</span>
-      </div>
-
-      <!-- 유사 타겟 설정 (타입 = 유사 타겟일 때만 표시) -->
-      <div id="lookalikeSec" style="display:none;"></div>
-
-      <!-- 연동 매체 -->
-      <div class="form-group" style="margin-top:16px;"><label class="form-label">동기화할 매체 (복수 선택)</label>
-        <select class="form-select" id="audPlatform" multiple style="height:84px;"><option>카카오</option><option>네이버</option><option>메타</option><option>구글</option><option>틱톡</option></select>
-      </div>
-      <button class="btn btn-primary" style="width:100%;margin-top:4px;" onclick="addAudience()">오디언스 생성 및 동기화</button>
-    </div>
-  </div>
-</div>
 
 <!-- OAuth 동의 모달 -->
 <div class="modal-overlay" id="modal-oauth">
@@ -1451,7 +1222,7 @@ tr:hover td{background:var(--gray-50);}
 
 <div class="toast-container" id="toastContainer"></div>
 
-<script src="deepfle-main.js?v=20250710l"></script>
+<script src="deepfle-main.js?v=20250710n"></script>
 <script src="deepfle-features.js?v=20250706b"></script>
 
 <!-- ===== HELP GUIDE MODAL ===== -->
@@ -1484,7 +1255,6 @@ const _HELP_STEPS = [
    items:[
      {icon:'🏢',label:'계정 생성',text:'광고주(클라이언트)별 계정을 생성합니다. 설정 → 계정 관리에서 추가할 수 있습니다.'},
      {icon:'👥',label:'역할별 멤버 초대',text:'<b>관리자(MASTER)</b> — API 연동·설정·사용자 관리 전체<br><b>담당자(USER)</b> — 성과 조회·분석·리포트 편집<br><b>광고주</b> — 성과 데이터 조회 전용'},
-     {icon:'🔒',label:'접근 권한 참고',text:'자동 최적화·어트리뷰션·오디언스 타겟팅은 관리자(MASTER)만 접근 가능합니다.'},
    ]},
   {badge:'STEP 2',icon:'🔌',title:'매체 연동',
    desc:'광고 매체 API를 연결하면 성과 데이터가 자동으로 수집됩니다.',

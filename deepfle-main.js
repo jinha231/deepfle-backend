@@ -247,15 +247,7 @@ const MEDIA_DATA = [
 
 // 일일 소진한도는 계정별 로드 (_loadAccountSettings에서 처리)
 
-let rules = [];
-
 let reports = [];
-
-let links = [];
-
-const AUD_DEMO = [];
-function _saveAudiences() { localStorage.setItem('deepfle_audiences', JSON.stringify(audiences)); }
-let audiences = JSON.parse(localStorage.getItem('deepfle_audiences') || 'null') || [];
 
 const ALL_MEDIA_NAMES = ['카카오모먼트','네이버 검색광고','구글 Ads','메타(페이스북)','카카오 비즈보드','네이버 쇼핑','틱톡','유튜브','당근마켓'];
 const MEDIA_META = {
@@ -769,13 +761,7 @@ function renderSidebarNav() {
     {id:'report-set',   icon:'🧰', label:'전환데이터 입력',    roles:['master','user'], locked: !CAN_EDIT(r)},
     {id:'raw-download', icon:'⬇️', label:'Raw 다운로드',       roles:['master','user']},
     {section:'계정'},
-    ...(_demoMode ? [] : [
-      {id:'optimization', icon:'⚙️', label:'자동 최적화',        roles:['master'], masterOnly:true},
-      {id:'attribution',  icon:'🔗', label:'어트리뷰션 링크',    roles:['master'], masterOnly:true},
-      {id:'audience',     icon:'🎯', label:'오디언스 타겟팅',    roles:['master'], masterOnly:true},
-    ]),
     {id:'workspace',    icon:'📰', label:'활동 피드',           roles:['master','user']},
-    {section:'설정'},
     {id:'settings',     icon:'🔧', label:'설정',               roles:['master','user']},
     {id:'accounts',     icon:'🏢', label:'계정 관리',           roles:['master'], masterOnly:true},
   ];
@@ -804,19 +790,14 @@ function renderSidebarNav() {
 // ============================================================
 const PANEL_TITLES = {
   overview:'대시보드', 'media-report':'미디어 리포트', 'report-set':'전환데이터 입력',
-  accounts:'계정 관리', optimization:'자동 최적화',
-  reporting:'커스텀 리포트', attribution:'어트리뷰션 링크',
-  audience:'오디언스 타겟팅', workspace:'활동 피드', settings:'설정',
+  accounts:'계정 관리',
+  reporting:'커스텀 리포트',
+  workspace:'활동 피드', settings:'설정',
   connections:'연결 관리', 'raw-download':'Raw 다운로드',
   'raw-upload':'Raw 업로드', setup:'시작하기'
 };
 
 function showPanel(name, navEl) {
-  const _MASTER_ONLY_PANELS = ['optimization','attribution','audience'];
-  if (_MASTER_ONLY_PANELS.includes(name) && currentUser.role !== 'master') {
-    showToast('관리자(MASTER)만 접근할 수 있는 메뉴입니다', 'warning');
-    return;
-  }
   if (name && name !== 'setup') localStorage.setItem('deepfle_last_panel', name);
   document.querySelectorAll('.dash-panel').forEach(p=>p.classList.remove('active'));
   const panel = document.getElementById('panel-'+name);
@@ -831,7 +812,7 @@ function showPanel(name, navEl) {
 
   // 계정 없을 때 계정 필요 패널 → setup으로 리다이렉트
   const NEEDS_ACCOUNT = ['overview','media-report','report-set','raw-download','raw-upload',
-    'optimization','attribution','audience','workspace','connections','reporting'];
+    'workspace','connections','reporting'];
   if (!currentAccount && NEEDS_ACCOUNT.includes(name)) {
     showToast('먼저 광고주 계정을 등록해주세요', 'warning');
     name = 'setup';
@@ -839,8 +820,7 @@ function showPanel(name, navEl) {
 
   const renders = {
     overview: renderOverview, accounts: renderAccounts,
-    optimization: renderOptimization, reporting: renderReporting,
-    attribution: renderAttribution, audience: renderAudience,
+    reporting: renderReporting,
     workspace: renderWorkspace, settings: renderSettings,
     'media-report': renderMediaReport, 'report-set': renderReportSettings,
     'raw-download': renderRawDownload, 'raw-upload': renderRawUpload,
@@ -1109,7 +1089,7 @@ async function _renderDashBody() {
     const mClick= sum(sMatches.flatMap(sv=>sv.click));
     const mConv = sum(sMatches.flatMap(sv=>sv.conv));
     const mRev  = sum(sMatches.flatMap(sv=>sv.revenue));
-    const displaySpend = _markupCost(mCost, m.key||'');
+    const displaySpend = mCost; // series는 위(마크업 적용 단계)에서 이미 반영됨 — 여기서 재적용하면 이중계산됨
     const displayCpa   = mConv ? Math.round(displaySpend / mConv) : 0;
     const ctrVal = mImp ? (mClick/mImp*100).toFixed(2)+'%' : '-';
     const roasVal = displaySpend ? Math.round(mRev/displaySpend*100) : 0;
@@ -1612,7 +1592,6 @@ function switchAccount(accId) {
   // 백엔드 모드면 해당 계정 매체 재로드
   if (DEEPFLE_API.live) { loadBackendMedia(accId).then(()=>{ if(document.getElementById('panel-overview').classList.contains('active')) renderOverview(); }); }
   // 현재 열려있는 계정별 패널 갱신
-  if (document.getElementById('panel-optimization').classList.contains('active')) renderOptimization();
   if (document.getElementById('panel-settings').classList.contains('active')) renderSettings();
   if (document.getElementById('panel-media-report')?.classList.contains('active')) renderMediaReport();
   showToast(`"${currentAccount.name}" 계정으로 전환했습니다`,'success');
@@ -2185,240 +2164,6 @@ async function rejectPendingUser(uid, name) {
     showToast(`${name} 님의 가입 신청을 거절했습니다`, 'info');
     loadPendingUsers();
   } catch(e) { showToast(`거절 실패: ${e.message}`, 'error'); }
-}
-
-// ============================================================
-// OPTIMIZATION  (Phase 2 — 규칙 로그 추가)
-// ============================================================
-
-// Log data
-const RULE_LOGS = [
-  {ruleId:0, ruleName:'광고비 초과 자동 중지', time:'2024.01.31 14:23', type:'stopped',
-   detail:'카카오모먼트 "신제품_1월" 캠페인 일시정지', affected:['신제품_1월'], saving:102400,
-   reason:'일 광고비 ₩102,400 → 기준치 ₩100,000 초과'},
-  {ruleId:0, ruleName:'광고비 초과 자동 중지', time:'2024.01.30 11:05', type:'stopped',
-   detail:'메타 "1월이벤트" 캠페인 일시정지', affected:['1월이벤트'], saving:87200,
-   reason:'일 광고비 ₩87,200 → 기준치 초과 (ROAS 0%)'},
-  {ruleId:1, ruleName:'ROAS 저하 예산 감소', time:'2024.01.31 15:00', type:'decreased',
-   detail:'네이버 "브랜드키워드" 광고세트 예산 20% 감소', affected:['브랜드키워드','일반키워드'], saving:0,
-   reason:'ROAS 182% → 기준치 200% 미달'},
-  {ruleId:1, ruleName:'ROAS 저하 예산 감소', time:'2024.01.31 14:00', type:'decreased',
-   detail:'구글 "GDN_배너" 광고세트 예산 감소', affected:['GDN_배너'], saving:0,
-   reason:'ROAS 168% → 기준치 미달'},
-  {ruleId:2, ruleName:'고성과 예산 자동 증액', time:'2024.01.29 09:00', type:'increased',
-   detail:'카카오 "유사타겟" 광고세트 예산 10% 증가', affected:['유사타겟_30대'], saving:0,
-   reason:'ROAS 720% + 클릭 634 → 조건 충족'},
-  {ruleId:0, ruleName:'광고비 초과 자동 중지', time:'2024.01.28 16:40', type:'stopped',
-   detail:'틱톡 "MZ타겟" 캠페인 일시정지', affected:['MZ타겟_캠페인'], saving:65000,
-   reason:'일 광고비 ₩65,000 + 전환 0건'},
-  {ruleId:1, ruleName:'ROAS 저하 예산 감소', time:'2024.01.28 13:00', type:'decreased',
-   detail:'메타 "리타게팅" 광고세트 예산 감소', affected:['리타게팅_30일'], saving:0,
-   reason:'ROAS 158% 기준치 미달'},
-  {ruleId:0, ruleName:'광고비 초과 자동 중지', time:'2024.01.27 10:12', type:'notified',
-   detail:'관리자에게 이메일 알림 발송', affected:[], saving:0,
-   reason:'카카오 "1월신제품" 광고비 임계치 80% 도달 (사전 알림)'},
-];
-
-const LOG_TYPE_META = {
-  stopped:  {label:'자동 중지',  chipClass:'stopped',  icon:'⛔', color:'var(--danger)'},
-  decreased:{label:'예산 감소',  chipClass:'decreased', icon:'📉', color:'var(--warning)'},
-  increased:{label:'예산 증가',  chipClass:'increased', icon:'📈', color:'var(--success)'},
-  notified: {label:'알림 발송',  chipClass:'notified',  icon:'📧', color:'var(--primary)'},
-};
-
-async function renderOptimization() {
-  const r = currentUser.role;
-  const editable = CAN_EDIT(r);
-  document.getElementById('optimReadonlyBanner').innerHTML = '';
-  document.getElementById('optimActions').innerHTML = editable
-    ? `<button class="btn btn-primary btn-sm" onclick="showModal('ruleCreate')">+ 규칙 만들기</button>` : '';
-  // 계정별 규칙을 백엔드에서 로드 (미연결 시 기존 로컬 rules 유지)
-  if (DEEPFLE_API.live && currentAccount) {
-    try {
-      const res = await DEEPFLE_API.get(`/accounts/${currentAccount.id}/rules`);
-      rules = res.rules.map(x => ({
-        id:x.id, name:x.name, desc:x.description||'', level:x.level||'캠페인',
-        schedule:x.schedule||'', active:!!x.active, lastRun:x.last_run||'-', log:''
-      }));
-    } catch(e) { /* 폴백: 기존 rules 유지 */ }
-  }
-  renderRuleTab();
-}
-
-function renderRuleTab() {
-  const editable = CAN_EDIT(currentUser.role);
-  document.getElementById('ruleBuilderArea').innerHTML = editable ? `
-    <div class="rule-builder" style="margin-bottom:16px;">
-      <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:12px;">⚡ 빠른 규칙 생성</div>
-      <div class="rule-row">
-        <select class="rule-select"><option>캠페인 레벨</option><option>광고세트</option><option>소재</option></select>
-        <span style="font-size:12px;color:var(--gray-600);">에서</span>
-        <select class="rule-select"><option>광고비</option><option>ROAS</option><option>CPA</option></select>
-        <select class="rule-select"><option>≥ 이상</option><option>≤ 이하</option></select>
-        <input class="rule-select" type="number" placeholder="100000" style="width:110px;">
-        <span style="font-size:12px;color:var(--gray-600);">이면</span>
-        <select class="rule-select"><option>광고 일시정지</option><option>예산 10% 감소</option><option>예산 10% 증가</option><option>알림 발송</option></select>
-        <button class="btn btn-primary btn-sm" onclick="addRuleQuick()">저장</button>
-      </div>
-    </div>`
-    : `<div class="readonly-banner"><span class="readonly-banner-icon">👁️</span><span>조회 전용 — 규칙 수정은 사용자(USER) 이상 권한이 필요합니다.</span></div>`;
-  renderRuleList();
-}
-
-function switchOptimTab(el, tab) {
-  el.closest('.tab-pills').querySelectorAll('.tab-pill').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('optimTab-rules').style.display = tab==='rules' ? 'block' : 'none';
-  document.getElementById('optimTab-log').style.display   = tab==='log'   ? 'block' : 'none';
-  if (tab === 'log') renderLogTab();
-}
-
-// 백엔드 실행 이력(rule_executions) → 로그 카드 모델로 변환
-function mapExecToLogs(e) {
-  const impacts = e.impacts || [];
-  const typeOf = a => a==='pause'?'stopped':a==='budget_down'?'decreased':a==='budget_up'?'increased':'notified';
-  const type = impacts.length ? typeOf(impacts[0].action) : 'notified';
-  const affected = impacts.map(i=>i.media).filter(Boolean);
-  let saving = 0;
-  impacts.forEach(i=>{ if(typeof i.before==='number' && typeof i.after==='number' && i.before>i.after) saving += (i.before-i.after); });
-  const detail = impacts.length
-    ? `${impacts.length}개 매체 자동 조정 (${affected.slice(0,3).join(', ')}${affected.length>3?' 외':''})`
-    : '영향 매체 없음';
-  return {
-    ruleName: e.ruleName + (e.undone?' (되돌림)':''),
-    time: (e.executedAt||'').replace('T',' ').slice(0,16),
-    type, detail, affected, saving, reason:'자동 규칙 실행 결과'
-  };
-}
-
-async function renderLogTab() {
-  let logs = RULE_LOGS;   // 백엔드 미연결 시 데모 폴백
-  if (DEEPFLE_API.live && currentAccount) {
-    try {
-      const res = await DEEPFLE_API.get(`/accounts/${currentAccount.id}/rule-executions`);
-      logs = res.executions.map(mapExecToLogs);
-    } catch(e) { logs = []; }
-  }
-  // KPI 요약
-  const totalSaving = logs.reduce((s,l)=>s+l.saving,0);
-  const stopCount   = logs.filter(l=>l.type==='stopped').length;
-  const decCount    = logs.filter(l=>l.type==='decreased').length;
-  const incCount    = logs.filter(l=>l.type==='increased').length;
-  document.getElementById('logKpiGrid').innerHTML = `
-    <div class="log-kpi"><div class="log-kpi-num" style="color:var(--danger);">${stopCount}회</div><div class="log-kpi-label">자동 중지</div></div>
-    <div class="log-kpi"><div class="log-kpi-num" style="color:var(--warning);">${decCount}회</div><div class="log-kpi-label">예산 감소</div></div>
-    <div class="log-kpi"><div class="log-kpi-num" style="color:var(--success);">${incCount}회</div><div class="log-kpi-label">예산 증가</div></div>
-    <div class="log-kpi"><div class="log-kpi-num" style="color:var(--primary);">${fmtW(totalSaving)}</div><div class="log-kpi-label">절감된 광고비</div></div>`;
-
-  // 타임라인
-  if (!logs.length) {
-    document.getElementById('logTimeline').innerHTML =
-      `<div class="empty"><div class="empty-icon">📋</div>이 계정의 자동 규칙 실행 이력이 아직 없습니다</div>`;
-    return;
-  }
-  document.getElementById('logTimeline').innerHTML = logs.map((log,i) => {
-    const meta = LOG_TYPE_META[log.type];
-    const chips = log.affected.map(a=>`<span class="log-chip ${log.type}">${a}</span>`).join('');
-    const saving = log.saving > 0
-      ? `<div class="log-saving">💰 이번 실행으로 <strong>₩${log.saving.toLocaleString()}</strong> 절감</div>` : '';
-    return `
-      <div class="log-item">
-        <div class="log-dot ${log.type==='stopped'?'warning':log.type==='increased'?'success':'info'}"></div>
-        <div class="log-card">
-          <div class="log-card-header">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span>${meta.icon}</span>
-              <span class="log-rule-name">${log.ruleName}</span>
-              <span class="log-chip ${log.type}" style="font-size:10px;">${meta.label}</span>
-            </div>
-            <span class="log-time">${log.time}</span>
-          </div>
-          <div class="log-detail">${log.detail}</div>
-          <div style="font-size:11px;color:var(--gray-400);margin-top:4px;">📌 ${log.reason}</div>
-          ${chips ? `<div class="log-affected">${chips}</div>` : ''}
-          ${saving}
-        </div>
-      </div>`;
-  }).join('');
-}
-
-function renderRuleList() {
-  const editable = CAN_EDIT(currentUser.role);
-  if (!rules.length) {
-    document.getElementById('ruleList').innerHTML =
-      `<div class="empty"><div class="empty-icon">⚙️</div>이 계정에 설정된 자동화 규칙이 없습니다${editable?' — 우측 상단에서 규칙을 추가하세요':''}</div>`;
-    return;
-  }
-  document.getElementById('ruleList').innerHTML = rules.map((r,i)=>`
-    <div class="rule-card">
-      <div style="flex:1;">
-        <div class="rule-name">${r.name}</div>
-        <div class="rule-desc" style="color:var(--gray-400);font-size:11px;margin-top:2px;">${r.desc}</div>
-        <div style="display:flex;gap:7px;margin-top:7px;align-items:center;">
-          <span class="chip">${r.level}</span>
-          <span class="chip">⏰ ${r.schedule}</span>
-          <span style="font-size:11px;color:var(--gray-400);">마지막 실행: ${r.lastRun}</span>
-        </div>
-        ${r.log?`<div class="rule-log">📋 ${r.log}</div>`:''}
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0;">
-        <div class="toggle ${r.active?'on':''} ${editable?'':'disabled'}" onclick="${editable?`toggleRule(${i},this)`:''}" title="${editable?'클릭하여 전환':'편집 권한 필요'}"></div>
-        ${editable?`<button class="btn btn-xs btn-danger-outline" onclick="deleteRule(${i})">삭제</button>`:''}
-      </div>
-    </div>`).join('');
-}
-
-async function toggleRule(i,el) {
-  const rule = rules[i];
-  const next = !rule.active;
-  if (DEEPFLE_API.live && rule.id != null) {
-    try { await DEEPFLE_API.patch(`/rules/${rule.id}`, {active: next}); }
-    catch(e){ showToast(`변경 실패: ${e.message}`, e.status===403?'error':'warning'); return; }
-  }
-  rule.active = next; el.classList.toggle('on', next);
-  showToast(`규칙 "${rule.name}" ${next?'활성화':'비활성화'}`,'success');
-}
-async function deleteRule(i) {
-  const rule = rules[i];
-  if(!confirm(`"${rule.name}" 규칙을 삭제하시겠습니까?`)) return;
-  if (DEEPFLE_API.live && rule.id != null) {
-    try { await DEEPFLE_API.del(`/rules/${rule.id}`); }
-    catch(e){ showToast(`삭제 실패: ${e.message}`, e.status===403?'error':'warning'); return; }
-  }
-  rules.splice(i,1); renderRuleList(); showToast('삭제되었습니다','success');
-}
-// 규칙 생성 공통 — 백엔드 연결 시 계정에 영속, 아니면 로컬
-async function createRule(payload) {
-  if (DEEPFLE_API.live && currentAccount) {
-    const res = await DEEPFLE_API.post(`/accounts/${currentAccount.id}/rules`, payload);
-    const x = res.rule;
-    rules.unshift({id:x.id, name:x.name, desc:x.description||'', level:x.level,
-                   schedule:x.schedule, active:!!x.active, lastRun:x.last_run||'-', log:''});
-  } else {
-    rules.unshift({name:payload.name, desc:payload.description, level:payload.level,
-                   schedule:payload.schedule, active:!!payload.active, lastRun:'-', log:''});
-  }
-}
-async function addRuleQuick() {
-  try {
-    await createRule({name:'새 자동화 규칙', description:'사용자 정의 조건 → 액션 실행',
-                      level:'캠페인', schedule:'실시간', active:true});
-  } catch(e){ showToast(`생성 실패: ${e.message}`, e.status===403?'error':'warning'); return; }
-  renderRuleList(); showToast('규칙이 저장되었습니다','success');
-}
-async function addRuleFromModal() {
-  const v = id => { const el=document.getElementById(id); return el ? el.value : ''; };
-  const name = v('ruleNameInput') || '새 규칙';
-  const level = v('ruleLevelInput') || '캠페인';
-  const schedule = v('ruleScheduleInput') || '실시간';
-  const metric = v('ruleCondMetric'), op = v('ruleCondOp'), val = v('ruleCondVal'), action = v('ruleActionInput');
-  const description = (metric && action)
-    ? `${metric} ${op} ${val||''} → ${action}`.replace(/\s+/g,' ').trim()
-    : '사용자 정의 조건 → 액션 실행';
-  try {
-    await createRule({name, description, level, schedule, active:true});
-  } catch(e){ showToast(`생성 실패: ${e.message}`, e.status===403?'error':'warning'); return; }
-  closeModal('ruleCreate'); renderRuleList(); showToast(`"${name}" 규칙이 생성되었습니다`,'success');
 }
 
 // ============================================================
@@ -3396,477 +3141,6 @@ function shareReport() {
   navigator.clipboard.writeText(shareUrl).catch(()=>{});
   showToast('공유 링크가 클립보드에 복사되었습니다: ' + shareUrl, 'success');
 }
-
-
-// ============================================================
-// ATTRIBUTION  (Phase 2 — 링크별 성과 차트 + 퍼널)
-// ============================================================
-
-const LINK_DETAIL_DATA = {
-  'https://deepfle.io/t/abc123': {
-    clicks:[420,380,560,710,820,640,580,760,900,850,720,680,820,940,1020,880,760,840,920,1100,1050,980,860,740,820,900,940,1020,880,760],
-    convs: [ 18, 14, 22, 28, 32, 25, 20, 29, 34, 31, 26, 24, 30, 36, 38, 33, 28, 31, 35, 42, 40, 37, 32, 27, 30, 34, 36, 39, 33, 28],
-    funnel:[{step:'노출',val:284000,color:'#4F46E5'},{step:'클릭',val:8420,color:'#818CF8'},{step:'방문',val:6200,color:'#A5B4FC'},{step:'장바구니',val:1840,color:'#10B981'},{step:'구매',val:312,color:'#059669'}],
-    utms:{source:'kakao',medium:'cpc',campaign:'jan_newproduct',content:'banner_01',term:''},
-  },
-  'https://deepfle.io/t/def456': {
-    clicks:[210,240,280,260,320,290,310,340,380,360,300,280,320,360,400,380,320,350,390,430,410,380,340,300,330,360,390,420,380,340],
-    convs: [  8,  9, 11, 10, 13, 11, 12, 13, 15, 14, 11, 10, 12, 14, 16, 15, 12, 13, 15, 17, 16, 15, 13, 11, 12, 14, 15, 16, 15, 13],
-    funnel:[{step:'노출',val:180000,color:'#4F46E5'},{step:'클릭',val:5230,color:'#818CF8'},{step:'방문',val:4100,color:'#A5B4FC'},{step:'장바구니',val:820,color:'#10B981'},{step:'구매',val:198,color:'#059669'}],
-    utms:{source:'naver',medium:'cpc',campaign:'jan_keyword',content:'',term:'신제품 브랜드'},
-  },
-  'https://deepfle.io/t/ghi789': {
-    clicks:[640,720,680,760,820,900,840,780,860,940,880,820,900,980,1060,1000,940,980,1060,1140,1080,1020,960,880,940,1000,1040,1120,1060,980],
-    convs: [ 26, 29, 27, 31, 33, 37, 34, 32, 35, 38, 36, 33, 37, 40, 43, 41, 38, 40, 43, 47, 44, 41, 39, 36, 38, 41, 42, 46, 43, 39],
-    funnel:[{step:'노출',val:420000,color:'#4F46E5'},{step:'클릭',val:12800,color:'#818CF8'},{step:'방문',val:9600,color:'#A5B4FC'},{step:'장바구니',val:2800,color:'#10B981'},{step:'구매',val:421,color:'#059669'}],
-    utms:{source:'meta',medium:'paid_social',campaign:'new_year_event',content:'video_01',term:''},
-  },
-};
-let attrClickChart;
-
-function renderAttribution() {
-  const editable = CAN_EDIT(currentUser.role);
-  document.getElementById('attrReadonlyBanner').innerHTML = !editable
-    ? `<div class="readonly-banner"><span class="readonly-banner-icon">👁️</span><span>조회 전용 — 추적 링크 생성은 사용자(USER) 이상 권한이 필요합니다.</span></div>` : '';
-  document.getElementById('attrActions').innerHTML = editable
-    ? `<button class="btn btn-primary btn-sm" onclick="showModal('linkCreate')">+ 링크 생성</button>` : '';
-  document.getElementById('attrCreateArea').innerHTML = editable ? `
-    <div class="card" style="margin-bottom:16px;">
-      <div class="card-header"><div class="card-title">빠른 링크 생성</div></div>
-      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
-        <div class="form-group" style="flex:1;min-width:160px;margin:0"><label class="form-label">캠페인명</label><input class="form-input" id="qcName" placeholder="캠페인명"></div>
-        <div class="form-group" style="flex:2;min-width:200px;margin:0"><label class="form-label">원본 URL</label><input class="form-input" id="qcUrl" placeholder="https://"></div>
-        <div class="form-group" style="flex:0;margin:0"><label class="form-label">매체</label><select class="form-select" id="qcMedia"><option>카카오</option><option>네이버</option><option>구글</option><option>메타</option></select></div>
-        <button class="btn btn-primary" onclick="quickGenLink()">생성</button>
-      </div>
-      <div id="quickLinkResult" style="margin-top:10px;"></div>
-    </div>` : '';
-  renderLinkTable();
-}
-
-function renderLinkTable() {
-  document.getElementById('linkTable').innerHTML = links.map((l,i)=>`
-    <tr style="cursor:pointer;" onclick="openAttrDetail(${i})">
-      <td style="font-weight:600;">${l.name}</td>
-      <td><span class="chip">${l.media}</span></td>
-      <td><span class="link-url">${l.url}</span></td>
-      <td class="text-right num">${l.click.toLocaleString()}</td>
-      <td class="text-right num">${l.cvr.toLocaleString()}</td>
-      <td class="text-right">${(l.cvr/l.click*100).toFixed(2)}%</td>
-      <td style="font-size:11px;color:var(--gray-400);">${l.date}</td>
-      <td><button class="copy-btn" onclick="event.stopPropagation();copyText('${l.url}')">복사</button></td>
-    </tr>`).join('');
-}
-
-function openAttrDetail(idx) {
-  const link = links[idx];
-  const d = LINK_DETAIL_DATA[link.url] || LINK_DETAIL_DATA['https://deepfle.io/t/abc123'];
-  const labels = Array.from({length:30},(_,i)=>`1/${i+1}`);
-  const maxFunnel = d.funnel[0].val;
-  const ctr = (link.click / d.funnel[0].val * 100).toFixed(2);
-  const cvr = (link.cvr / link.click * 100).toFixed(2);
-
-  document.getElementById('attrDetailPanel').innerHTML = `
-    <div class="ad-header">
-      <div>
-        <div class="ad-title">${link.name}</div>
-        <div style="font-size:11px;color:var(--gray-400);margin-top:2px;">${link.media} · ${link.date} · <span class="link-url">${link.url}</span></div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <button class="copy-btn" onclick="copyText('${link.url}')">링크 복사</button>
-        <button class="modal-close" onclick="closeAttrDetail()">×</button>
-      </div>
-    </div>
-    <div class="ad-body">
-
-      <!-- 요약 KPI -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">
-        <div class="rv-kpi"><div class="rv-kpi-label">총 클릭</div><div class="rv-kpi-val">${link.click.toLocaleString()}</div></div>
-        <div class="rv-kpi"><div class="rv-kpi-label">총 전환</div><div class="rv-kpi-val">${link.cvr.toLocaleString()}</div></div>
-        <div class="rv-kpi"><div class="rv-kpi-label">CTR</div><div class="rv-kpi-val">${ctr}%</div></div>
-        <div class="rv-kpi"><div class="rv-kpi-label">전환율</div><div class="rv-kpi-val" style="color:var(--success);">${cvr}%</div></div>
-      </div>
-
-      <!-- 클릭 추이 차트 -->
-      <div class="card" style="margin-bottom:16px;padding:16px;">
-        <div class="card-header" style="margin-bottom:12px;">
-          <div class="card-title">일별 클릭 & 전환 추이</div>
-          <div style="display:flex;gap:12px;font-size:11px;color:var(--gray-400);">
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:2px;background:#4F46E5;display:inline-block;border-radius:1px;"></span>클릭</span>
-            <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:2px;background:#10B981;display:inline-block;border-radius:1px;"></span>전환</span>
-          </div>
-        </div>
-        <canvas id="attrClickChart" height="140"></canvas>
-      </div>
-
-      <!-- 전환 퍼널 -->
-      <div class="card" style="margin-bottom:16px;padding:16px;">
-        <div class="card-header" style="margin-bottom:12px;"><div class="card-title">전환 퍼널</div></div>
-        <div class="funnel-wrap">
-          ${d.funnel.map((f,i)=>{
-            const pct = Math.round(f.val/maxFunnel*100);
-            const rate = i>0 ? `(${(f.val/d.funnel[i-1].val*100).toFixed(1)}%)` : '';
-            return `<div class="funnel-step">
-              <div class="funnel-label">${f.step}</div>
-              <div class="funnel-bar-wrap">
-                <div class="funnel-bar" style="width:${pct}%;background:${f.color};">${pct>8?f.val.toLocaleString():''}</div>
-              </div>
-              <div class="funnel-val">${f.val.toLocaleString()}</div>
-              <div class="funnel-rate" style="color:${i===0?'var(--primary)':'var(--gray-400)'};">${rate}</div>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>
-
-      <!-- UTM 파라미터 -->
-      <div class="card" style="padding:16px;">
-        <div class="card-header" style="margin-bottom:12px;"><div class="card-title">UTM 파라미터</div></div>
-        <table class="utm-table">
-          <tr><td>utm_source</td><td><span class="utm-val">${d.utms.source}</span></td></tr>
-          <tr><td>utm_medium</td><td><span class="utm-val">${d.utms.medium}</span></td></tr>
-          <tr><td>utm_campaign</td><td><span class="utm-val">${d.utms.campaign}</span></td></tr>
-          ${d.utms.content?`<tr><td>utm_content</td><td><span class="utm-val">${d.utms.content}</span></td></tr>`:''}
-          ${d.utms.term?`<tr><td>utm_term</td><td><span class="utm-val">${d.utms.term}</span></td></tr>`:''}
-          <tr><td>추적 URL</td><td><span class="utm-val" style="color:var(--primary);">${link.url}</span></td></tr>
-        </table>
-      </div>
-
-    </div>`;
-
-  document.getElementById('attrDetailOverlay').classList.add('open');
-
-  setTimeout(()=>{
-    if(attrClickChart) attrClickChart.destroy();
-    const ctx = document.getElementById('attrClickChart');
-    if(ctx) {
-      attrClickChart = new Chart(ctx, {
-        type:'line',
-        data:{labels, datasets:[
-          {label:'클릭',data:d.clicks,borderColor:'#4F46E5',backgroundColor:'rgba(79,70,229,.08)',tension:.4,yAxisID:'y'},
-          {label:'전환',data:d.convs, borderColor:'#10B981',backgroundColor:'rgba(16,185,129,.08)',tension:.4,yAxisID:'y1'},
-        ]},
-        options:{responsive:true,interaction:{mode:'index',intersect:false},
-          plugins:{legend:{display:false}},
-          scales:{
-            y: {position:'left', ticks:{font:{size:10}}},
-            y1:{position:'right',grid:{drawOnChartArea:false},ticks:{font:{size:10}}}
-          }}
-      });
-    }
-  }, 80);
-}
-
-function closeAttrDetail(e) {
-  if (e && e.target !== document.getElementById('attrDetailOverlay')) return;
-  document.getElementById('attrDetailOverlay').classList.remove('open');
-  if(attrClickChart){attrClickChart.destroy();attrClickChart=null;}
-}
-
-function quickGenLink() {
-  const name = document.getElementById('qcName').value || '링크';
-  const url = `https://deepfle.io/t/${Math.random().toString(36).substr(2,6)}`;
-  document.getElementById('quickLinkResult').innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--gray-50);border-radius:8px;">
-      <span style="font-size:12px;font-weight:600;color:var(--gray-600);">${name}</span>
-      <span class="link-url">${url}</span>
-      <button class="copy-btn" onclick="copyText('${url}')">복사</button>
-    </div>`;
-}
-
-function addLink() {
-  const name=document.getElementById('lcName').value||'새 링크';
-  const media=document.getElementById('lcMedia').value;
-  const url=`https://deepfle.io/t/${Math.random().toString(36).substr(2,6)}`;
-  links.unshift({name,media,url,click:0,cvr:0,date:new Date().toLocaleDateString('ko')});
-  closeModal('linkCreate'); renderLinkTable(); showToast('추적 링크가 생성되었습니다','success');
-}
-
-function copyText(text) {
-  navigator.clipboard.writeText(text).catch(()=>{});
-  showToast('클립보드에 복사되었습니다','success');
-}
-
-// ============================================================
-// AUDIENCE
-// ============================================================
-const SYNC_META = {
-  synced:  {label:'동기화됨',  cls:'synced'},
-  syncing: {label:'동기화 중', cls:'syncing'},
-  error:   {label:'동기화 실패',cls:'error'},
-  idle:    {label:'대기 중',   cls:'idle'},
-};
-
-function renderAudience() {
-  const editable = CAN_EDIT(currentUser.role);
-  document.getElementById('audReadonlyBanner').innerHTML = !editable
-    ? `<div class="readonly-banner"><span class="readonly-banner-icon">👁️</span><span>조회 전용 — 오디언스 생성은 사용자(USER) 이상 권한이 필요합니다.</span></div>` : '';
-  document.getElementById('audActions').innerHTML = editable
-    ? `<button class="btn btn-primary btn-sm" onclick="showModal('audienceCreate')">+ 오디언스 생성</button>` : '';
-
-  const typeTxt={방문자:'#1D4ED8','구매자':'#16A34A','유사 타겟':'#92400E','커스텀':'#7C3AED'};
-  document.getElementById('audienceGrid').innerHTML = audiences.map((a,i)=>{
-    const syncRows = a.platforms.map(p=>{
-      const st = (a.sync && a.sync[p]) || 'idle';
-      const meta = SYNC_META[st];
-      return `<div class="sync-platform-row">
-        <span style="font-weight:600;color:var(--gray-600);">${p}</span>
-        <span class="sync-status-text"><span class="sync-dot ${meta.cls}"></span>${meta.label}</span>
-      </div>`;
-    }).join('');
-    return `
-    <div class="audience-card">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:${typeTxt[a.type]||'#666'};margin-bottom:7px;">${a.type}</div>
-      <div style="font-size:14px;font-weight:700;margin-bottom:3px;">${a.name}</div>
-      <div style="font-size:11px;color:var(--gray-400);margin-bottom:6px;">${a.size}</div>
-      ${a.conditions?`<div style="font-size:11px;color:var(--gray-600);background:var(--gray-50);border-radius:6px;padding:6px 9px;margin-bottom:10px;line-height:1.5;">🎯 ${a.conditions}</div>`:''}
-      <div style="border-top:1px solid var(--gray-100);padding-top:8px;margin-bottom:8px;">${syncRows}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:8px;border-top:1px solid var(--gray-100);">
-        <div><div style="font-size:10px;color:var(--gray-400);">ROAS</div><div style="font-size:14px;font-weight:700;color:var(--success);">${a.roas}</div></div>
-        <div><div style="font-size:10px;color:var(--gray-400);">CPA</div><div style="font-size:14px;font-weight:700;">${a.cpa}</div></div>
-      </div>
-      ${editable?`<div style="display:flex;gap:6px;margin-top:12px;">
-        <button class="btn btn-xs btn-outline" style="flex:1" onclick="syncAudience(${i})">🔄 재동기화</button>
-        <button class="btn btn-xs btn-danger-outline" onclick="audiences.splice(${i},1);_saveAudiences();renderAudience();showToast('삭제됨','success')">삭제</button>
-      </div>`:''}
-    </div>`;
-  }).join('');
-}
-
-function syncAudience(i) {
-  const a = audiences[i];
-  a.platforms.forEach(p=>{ if(a.sync) a.sync[p]='syncing'; });
-  renderAudience();
-  showToast(`"${a.name}" 매체 동기화를 시작합니다`,'info');
-  setTimeout(()=>{
-    a.platforms.forEach(p=>{ if(a.sync) a.sync[p]='synced'; });
-    _saveAudiences();
-    renderAudience();
-    showToast(`"${a.name}" 전 매체 동기화 완료`,'success');
-  }, 1500);
-}
-
-// ── 세그먼트 빌더 ──
-const SEG_FIELDS = {
-  '인구통계': ['나이대','성별','지역','언어'],
-  '행동':     ['사이트 방문','구매 이력','장바구니 담기','앱 실행','영상 시청'],
-  '관심사':   ['패션/뷰티','IT/가전','식품','여행','육아','스포츠'],
-  '기기':     ['모바일','데스크톱','iOS','Android'],
-};
-const SEG_OPERATORS = ['포함','제외','≥ 이상','≤ 이하'];
-const SEG_VALUE_SCHEMA = {
-  '나이대':      { type:'multicheck', opts:['10대','20대','30대','40대','50대','60대+'], default:'20대,30대' },
-  '성별':        { type:'radio',      opts:['전체','남성','여성'],                        default:'전체' },
-  '지역':        { type:'multicheck', opts:['서울','경기','인천','부산','대구','광주','대전','울산','강원','충청','전라','경상','제주'], default:'서울' },
-  '언어':        { type:'radio',      opts:['한국어','영어','일본어','중국어'],             default:'한국어' },
-  '사이트 방문':  { type:'period',  unit:'일', max:180, default:'30' },
-  '구매 이력':   { type:'period',  unit:'일', max:365, default:'30', extRequired:['ga4','acecounter'] },
-  '장바구니 담기':{ type:'period',  unit:'일', max:180, default:'14' },
-  '앱 실행':     { type:'period',  unit:'일', max:90,  default:'7',  extRequired:['airbridge','adjust','appsflyer'] },
-  '영상 시청':   { type:'percent', default:'50' },
-  '패션/뷰티':   { type:'level' }, 'IT/가전':{ type:'level' }, '식품':{ type:'level' },
-  '여행':        { type:'level' }, '육아':   { type:'level' }, '스포츠':{ type:'level' },
-};
-let segConditions = [];
-let segMatchType = 'AND';
-
-function _segDefaultVal(field) {
-  const s = SEG_VALUE_SCHEMA[field];
-  if (!s) return '';
-  if (s.type === 'multicheck') return s.default || s.opts[0];
-  if (s.type === 'radio')      return s.default || s.opts[0];
-  if (s.type === 'level')      return '관심 있음';
-  return s.default || '';
-}
-
-// 전환설정에 등록된 소스별 연동(config) 여부 — renderConversionSettings가 채워두는 캐시 사용
-function _isSourceConnected(source) {
-  return (window._connSourcesCache || []).some(c => {
-    if (c.source !== source) return false;
-    try { return Object.keys(JSON.parse(c.config||'{}')).length > 0; } catch(e) { return false; }
-  });
-}
-
-function _renderSegValUI(field, val, idx) {
-  const s = SEG_VALUE_SCHEMA[field];
-  if (s?.extRequired) {
-    const missing = s.extRequired.filter(r => !_isSourceConnected(r));
-    if (missing.length === s.extRequired.length) {
-      const names = s.extRequired.slice(0,2).map(r => EXT_SOLUTIONS.find(e=>e.id===r)?.name||r).join(' · ');
-      return `<span style="font-size:10px;color:#92400E;background:#FFFBEB;border:1px solid #FCD34D;border-radius:5px;padding:3px 8px;">⚠️ ${names} 연동 필요</span>`;
-    }
-  }
-  if (!s || s.type === 'level') {
-    const opts = ['관심 있음','매우 관심'];
-    const cur = val || opts[0];
-    return `<div class="seg-radio-group">${opts.map(o=>`<label class="seg-check-lbl"><input type="radio" name="segv_${idx}" value="${o}" ${cur===o?'checked':''} onchange="updateSegCond(${idx},'value',this.value);recalcReach()"> ${o}</label>`).join('')}</div>`;
-  }
-  switch (s.type) {
-    case 'multicheck': {
-      const sel = (val||s.default||'').split(',').map(v=>v.trim()).filter(Boolean);
-      return `<div class="seg-multicheck" id="segMC_${idx}">${s.opts.map(o=>`<label class="seg-check-lbl"><input type="checkbox" value="${o}" ${sel.includes(o)?'checked':''} onchange="_segUpdateMulti(${idx})"> ${o}</label>`).join('')}</div>`;
-    }
-    case 'radio': {
-      const cur = val || s.default || s.opts[0];
-      return `<div class="seg-radio-group">${s.opts.map(o=>`<label class="seg-check-lbl"><input type="radio" name="segv_${idx}" value="${o}" ${cur===o?'checked':''} onchange="updateSegCond(${idx},'value',this.value);recalcReach()"> ${o}</label>`).join('')}</div>`;
-    }
-    case 'period':
-      return `<div class="seg-period-wrap">최근&nbsp;<input class="seg-period-input" type="number" min="1" max="${s.max||365}" value="${val||s.default||'30'}" oninput="updateSegCond(${idx},'value',this.value);recalcReach()">&nbsp;${s.unit}</div>`;
-    case 'percent':
-      return `<div class="seg-period-wrap"><input class="seg-period-input" type="number" min="1" max="100" value="${val||'50'}" oninput="updateSegCond(${idx},'value',this.value);recalcReach()">&nbsp;% 이상 시청</div>`;
-  }
-  return `<input class="seg-select" style="width:90px;" value="${val||''}" onchange="updateSegCond(${idx},'value',this.value)" placeholder="값">`;
-}
-
-function _segUpdateMulti(idx) {
-  const checks = document.querySelectorAll(`#segMC_${idx} input:checked`);
-  const val = Array.from(checks).map(c=>c.value).join(', ');
-  if (val) segConditions[idx].value = val;
-  recalcReach();
-}
-
-async function initSegBuilder() {
-  segConditions = [{category:'행동', field:'사이트 방문', op:'포함', value:'30'}];
-  segMatchType = 'AND';
-  if (currentAccount) {
-    try {
-      const { conversions } = await DEEPFLE_API.get(`/accounts/${currentAccount.id}/conversion-settings`);
-      window._connSourcesCache = conversions;
-    } catch(e) {}
-  }
-  renderSegBuilder();
-  recalcReach();
-}
-
-function renderSegBuilder() {
-  const el = document.getElementById('segBuilder');
-  if (!el) return;
-  el.innerHTML = `
-    <div class="seg-group">
-      <div class="seg-group-header">
-        <span class="seg-group-label">다음 조건을 만족하는 사용자</span>
-        <div class="seg-andor">
-          <span class="seg-andor-btn ${segMatchType==='AND'?'active':''}" onclick="setSegMatch('AND')">AND (모두)</span>
-          <span class="seg-andor-btn ${segMatchType==='OR'?'active':''}" onclick="setSegMatch('OR')">OR (하나)</span>
-        </div>
-      </div>
-      ${segConditions.map((c,i)=>`
-        <div class="seg-cond" style="flex-wrap:wrap;align-items:flex-start;padding-bottom:6px;">
-          <select class="seg-select" style="margin-top:2px;" onchange="updateSegCond(${i},'category',this.value)">
-            ${Object.keys(SEG_FIELDS).map(cat=>`<option ${c.category===cat?'selected':''}>${cat}</option>`).join('')}
-          </select>
-          <select class="seg-select" style="margin-top:2px;" onchange="updateSegCond(${i},'field',this.value)">
-            ${SEG_FIELDS[c.category].map(f=>`<option ${c.field===f?'selected':''}>${f}</option>`).join('')}
-          </select>
-          <select class="seg-select" style="margin-top:2px;" onchange="updateSegCond(${i},'op',this.value)">
-            ${SEG_OPERATORS.map(o=>`<option ${c.op===o?'selected':''}>${o}</option>`).join('')}
-          </select>
-          <div class="seg-val-wrap" style="margin-top:4px;">${_renderSegValUI(c.field, c.value, i)}</div>
-          ${segConditions.length>1?`<span class="seg-cond-remove" style="margin-top:4px;" onclick="removeSegCondition(${i})">×</span>`:''}
-        </div>
-      `).join('')}
-    </div>`;
-}
-
-function setSegMatch(t){ segMatchType=t; renderSegBuilder(); recalcReach(); }
-function addSegCondition(){
-  segConditions.push({category:'관심사', field:'패션/뷰티', op:'포함', value:_segDefaultVal('패션/뷰티')});
-  renderSegBuilder(); recalcReach();
-}
-function removeSegCondition(i){ segConditions.splice(i,1); renderSegBuilder(); recalcReach(); }
-function updateSegCond(i, key, val) {
-  segConditions[i][key] = val;
-  if (key === 'category') {
-    segConditions[i].field = SEG_FIELDS[val][0];
-    segConditions[i].value = _segDefaultVal(SEG_FIELDS[val][0]);
-  }
-  if (key === 'field') segConditions[i].value = _segDefaultVal(val);
-  renderSegBuilder(); recalcReach();
-}
-
-function recalcReach() {
-  const TOTAL = 1240000;
-  const isLL = document.getElementById('audType')?.value === '유사 타겟';
-  let reach;
-  if (isLL) {
-    const seedIdx = document.getElementById('llSeed')?.value;
-    const ratio = parseInt(document.querySelector('#lookalikeSec input[type=range]')?.value||'3');
-    const seed = seedIdx !== '' && audiences[seedIdx] ? audiences[seedIdx] : null;
-    reach = seed ? Math.round(seed.reach * ratio * 6) : Math.round(TOTAL * 0.15);
-  } else if (segMatchType === 'AND') {
-    reach = Math.round(TOTAL / Math.pow(1.8, segConditions.length));
-  } else {
-    reach = Math.round(TOTAL * (1 - Math.pow(0.55, segConditions.length)));
-  }
-  reach = Math.max(1200, reach);
-  const pct = Math.min(100, Math.round(reach/TOTAL*100));
-  const numEl = document.getElementById('segReachNum');
-  const fillEl = document.getElementById('segReachFill');
-  if (numEl) numEl.textContent = '약 ' + reach.toLocaleString() + '명';
-  if (fillEl) fillEl.style.width = pct + '%';
-  return reach;
-}
-
-function _onAudTypeChange() {
-  const isLL = document.getElementById('audType')?.value === '유사 타겟';
-  const segSec = document.getElementById('segBuilderSec');
-  const llSec  = document.getElementById('lookalikeSec');
-  if (segSec) segSec.style.display = isLL ? 'none' : '';
-  if (llSec)  llSec.style.display  = isLL ? '' : 'none';
-  if (isLL) _renderLookalikeUI();
-}
-
-function _renderLookalikeUI() {
-  const seeds = audiences.filter(a => a.type !== '유사 타겟');
-  document.getElementById('lookalikeSec').innerHTML = `
-    <div style="background:var(--primary-light);border:1px solid #C7D2FE;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
-      <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:10px;">🎯 유사 타겟 설정</div>
-      <div class="form-group" style="margin-bottom:12px;">
-        <label class="form-label" style="font-size:12px;">시드 오디언스 <span style="font-size:10px;color:var(--gray-400);">— 유사 타겟의 기반이 될 오디언스</span></label>
-        <select class="form-select" id="llSeed" onchange="recalcReach()">
-          ${seeds.length ? seeds.map(a=>`<option value="${audiences.indexOf(a)}">${a.name} · ${a.size}</option>`).join('') : '<option value="">생성된 오디언스가 없습니다</option>'}
-        </select>
-      </div>
-      <div>
-        <label class="form-label" style="font-size:12px;">확장 비율&nbsp;
-          <span id="llRatioLbl" style="color:var(--primary);font-weight:700;">3%</span>
-          <span style="font-size:10px;color:var(--gray-400);margin-left:4px;">— 값이 클수록 도달↑ 정밀도↓</span>
-        </label>
-        <input type="range" min="1" max="10" value="3" style="width:100%;accent-color:var(--primary);margin:6px 0;"
-          oninput="document.getElementById('llRatioLbl').textContent=this.value+'%';recalcReach()">
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray-400);">
-          <span>정밀 (1%)</span><span>광범위 (10%)</span>
-        </div>
-      </div>
-    </div>`;
-  recalcReach();
-}
-
-function addAudience() {
-  const name = document.getElementById('audName').value.trim() || '새 오디언스';
-  const type = document.getElementById('audType').value;
-  const plats = Array.from(document.getElementById('audPlatform').selectedOptions).map(o=>o.value);
-  const platforms = plats.length ? plats : ['카카오'];
-  const sync = {}; platforms.forEach(p=>sync[p]='syncing');
-  let reach, conditions;
-  if (type === '유사 타겟') {
-    const seedIdx = document.getElementById('llSeed')?.value;
-    const ratio = document.querySelector('#lookalikeSec input[type=range]')?.value || '3';
-    const seed = seedIdx !== '' && audiences[seedIdx] ? audiences[seedIdx] : null;
-    reach = recalcReach();
-    conditions = seed ? `시드: "${seed.name}" · 확장 ${ratio}%` : `유사 확장 ${ratio}%`;
-  } else {
-    reach = recalcReach();
-    conditions = segConditions.map(c=>`${c.field} ${c.op}${c.value?' '+c.value:''}`).join(segMatchType==='AND'?' + ':' / ');
-  }
-  const aud = {name, type, size:'약 '+reach.toLocaleString()+'명', reach, platforms, roas:'분석중', cpa:'-', sync, conditions};
-  audiences.unshift(aud);
-  _saveAudiences();
-  closeModal('audienceCreate');
-  renderAudience();
-  showToast(`"${name}" 오디언스 생성 · ${platforms.length}개 매체 동기화 중`,'success');
-  setTimeout(()=>{ platforms.forEach(p=>aud.sync[p]='synced'); aud.roas='측정 대기'; _saveAudiences(); renderAudience(); }, 1800);
-}
-
 // ============================================================
 // WORKSPACE
 // ============================================================
@@ -6986,9 +6260,6 @@ function showModal(name) {
     const lb = document.getElementById('inviteLinkBox');
     if (lb) lb.style.display = 'none';
   }
-  if (name === 'audienceCreate') {
-    initSegBuilder();
-  }
   document.getElementById('modal-'+name).classList.add('open');
 }
 
@@ -7050,12 +6321,8 @@ const DEEPFLE_API = {
     accounts:     'GET    /accounts',
     mediaStats:   'GET    /accounts/:accId/media',
     mediaUpdate:  'PATCH  /media/:mediaId',
-    rules:        'GET    /accounts/:accId/rules',
     audit:        'GET    /accounts/:accId/audit',
     reports:      'GET    /accounts/:accId/reports',
-    links:        'GET    /accounts/:accId/attribution-links',
-    audiences:    'GET    /accounts/:accId/audiences',
-    audienceSync: 'POST   /accounts/:accId/audiences/:audId/sync',
     messages:     'GET    /accounts/:accId/messages',
     mediaConnect: 'POST   /accounts/:accId/integrations/:media/oauth',
     users:        'GET    /users',
@@ -7202,14 +6469,24 @@ const _MARKUP_MEDIAS = [
 function _getMarkupCfg(){ try{return JSON.parse(localStorage.getItem(_accKey(_MARKUP_CFG_KEY))||'{}');}catch{return {};} }
 function _saveMarkupCfg(cfg){ localStorage.setItem(_accKey(_MARKUP_CFG_KEY),JSON.stringify(cfg)); }
 // cfg 구조: { meta: { enabled, rate, method }, google: { ... }, ... }
+// 매체 식별자(키·표시명 어느 쪽이 들어와도) → 마크업 설정에 쓰이는 키로 정규화
+function _resolveMarkupKey(mediaVal){
+  if (!mediaVal) return mediaVal;
+  if (_MARKUP_MEDIAS.some(m => m.key === mediaVal)) return mediaVal;
+  const byName = MEDIA_DATA.find(m => m.name === mediaVal);
+  if (byName?.key) return byName.key;
+  const manual = MANUAL_MEDIA.find(m => m.id === mediaVal || m.name === mediaVal);
+  if (manual) return manual.id;
+  return mediaVal;
+}
 function _markupCost(cost, mediaKey){
-  const mc=_getMarkupCfg()[mediaKey];
+  const mc=_getMarkupCfg()[_resolveMarkupKey(mediaKey)];
   if(!mc?.enabled) return cost;
   const rate=(mc.rate||0)/100;
   if(!rate) return cost;
   return mc.method==='gross' ? Math.round(cost/(1-rate)) : Math.round(cost*(1+rate));
 }
-function _markupApplies(mediaKey){ return !!_getMarkupCfg()[mediaKey]?.enabled; }
+function _markupApplies(mediaKey){ return !!_getMarkupCfg()[_resolveMarkupKey(mediaKey)]?.enabled; }
 
 function renderMarkupSettings(){
   const el=document.getElementById('setting-markup'); if(!el) return;
@@ -7219,7 +6496,7 @@ function renderMarkupSettings(){
   const connectedNames = new Set(MEDIA_DATA.filter(m=>m.on).map(m=>m.name));
   const activeMediaList = [
     ..._MARKUP_MEDIAS.filter(m => connectedKeys.has(m.key) || connectedNames.has(m.label)),
-    ...MANUAL_MEDIA.map(m => ({key:'manual_'+m.id, label:m.name+' (수기)'}))
+    ...MANUAL_MEDIA.map(m => ({key:m.id, label:m.name+' (수기)'}))
   ];
   if (!activeMediaList.length) {
     el.innerHTML=`<div class="card" style="max-width:720px;"><div style="padding:32px;text-align:center;color:var(--gray-400);font-size:13px;">매체 커넥터 & API 키 관리에서 매체를 연동하거나 수기 매체를 추가하면 마크업을 설정할 수 있습니다.</div></div>`;
@@ -7262,6 +6539,7 @@ function renderMarkupSettings(){
         </div>
         ${activeCount?`<span class="badge badge-green">${activeCount}개 매체 적용중</span>`:'<span class="badge" style="background:var(--gray-100);color:var(--gray-500);">미적용</span>'}
       </div>
+      <div style="font-size:12px;color:#DC2626;margin-top:8px;">※ 이 설정은 대시보드·미디어 리포트·Raw 다운로드의 광고비에 자동으로 반영됩니다.</div>
       <div style="overflow-x:auto;margin-top:12px;">
         <table class="data-table" style="width:100%;">
           <thead>
@@ -7297,7 +6575,7 @@ function _getActiveMarkupMedias(){
   const connectedNames=new Set(MEDIA_DATA.filter(m=>m.on).map(m=>m.name));
   return [
     ..._MARKUP_MEDIAS.filter(m=>connectedKeys.has(m.key)||connectedNames.has(m.label)),
-    ...MANUAL_MEDIA.map(m=>({key:'manual_'+m.id, label:m.name+' (수기)'}))
+    ...MANUAL_MEDIA.map(m=>({key:m.id, label:m.name+' (수기)'}))
   ];
 }
 function saveMarkupSettings(){
@@ -7410,7 +6688,7 @@ async function _rdSyncConvCols() {
 
 function _rdCellVal(col, row) {
   const rawCost=row.cost||0;
-  const cost=_markupCost(rawCost, row.media_key);
+  const cost=_markupCost(rawCost, row.media_key||row.media);
   const imp=row.imp||0, click=row.click||0, conv=row.conv||0;
   switch(col.key) {
     case 'date':          return row.date||'-';
@@ -7709,7 +6987,10 @@ function _rdRenderTable(breakdown) {
   const sumRow={};
   const sumKeys=new Set(['cost','imp','click','conv']);
   visCol.forEach(c=>{ if(c.key && c.key.indexOf('conv_id_')===0) sumKeys.add(c.key); });
-  sumKeys.forEach(k=>{ sumRow[k]=rows.reduce((s,r)=>s+(r[k]||0),0); });
+  sumKeys.forEach(k=>{
+    // cost는 매체별로 마크업율이 다를 수 있어 원본을 합산한 뒤 마크업하면 틀어짐 — 행별로 마크업 적용된 값을 먼저 구해 합산
+    sumRow[k]=k==='cost' ? rows.reduce((s,r)=>s+_rdCellVal({key:'cost'},r),0) : rows.reduce((s,r)=>s+(r[k]||0),0);
+  });
   const thCells=visCol.map(c=>`<th class="${c.type==='metric'?'text-right':''}" style="cursor:pointer;white-space:nowrap;user-select:none;" onclick="rdSort('${c.key}')">${c.label}${_rdSortKey===c.key?(_rdSortAsc?' ▲':' ▼'):''}</th>`).join('');
   let _sumDimSeen=false;
   const sumCells=visCol.map(c=>{
@@ -8800,7 +8081,7 @@ const STORE_KEY = 'deepfle_state_v1';
 function persist() {
   try {
     const snapshot = {
-      audiences, rules, reports, links,
+      reports,
       connectedMedia, mediaConnInfo,
       _savedAt: Date.now(),
     };
@@ -8813,10 +8094,7 @@ function loadPersisted() {
     const raw = localStorage.getItem(STORE_KEY);
     if (!raw) return false;
     const s = JSON.parse(raw);
-    if (s.audiences) audiences = s.audiences;
-    if (s.rules) rules = s.rules;
     if (s.reports) reports = s.reports;
-    if (s.links) links = s.links;
     if (s.connectedMedia) connectedMedia = s.connectedMedia;
     if (s.mediaConnInfo) mediaConnInfo = s.mediaConnInfo;
     return true;
@@ -8832,14 +8110,6 @@ function resetData() {
 // 변경 직후/이탈 시 자동 저장 + 주기적 저장
 window.addEventListener('beforeunload', persist);
 setInterval(persist, 5000);
-
-// 구버전 데모 데이터 localStorage 정리
-try {
-  const _oldAud = JSON.parse(localStorage.getItem('deepfle_audiences') || '[]');
-  if (Array.isArray(_oldAud) && _oldAud.some(a => a.name === '구매자 유사타겟 (30대)')) {
-    localStorage.removeItem('deepfle_audiences');
-  }
-} catch(e) {}
 
 // 앱 시작 시 저장 데이터 복원
 loadPersisted();
@@ -9149,14 +8419,6 @@ function _buildDemoResponse(path) {
     ]};
   if (/\/report-history/.test(path))   return {history:[]};
   if (/\/manual-metrics/.test(path))   return {rows:[]};
-  if (/\/rules/.test(path))
-    return {rules: [
-      {id:'r1', name:'구글 ROAS 하락 알림',      media:'google', mediaName:'구글 Ads',    metric:'roas',  op:'<', threshold:300,      action:'alert', active:true, createdAt:'2026-06-20 09:00'},
-      {id:'r2', name:'카카오 예산 초과 자동중단', media:'kakao',  mediaName:'카카오모먼트', metric:'spend', op:'>', threshold:15000000, action:'pause', active:true, createdAt:'2026-06-15 14:30'},
-    ]};
-  if (/\/rule-executions/.test(path))  return {executions:[]};
-  if (/\/attribution-links/.test(path)) return {links:[]};
-  if (/\/audiences/.test(path))        return {audiences:[]};
   if (/\/media-credentials/.test(path)) return {credentials:[]};
   if (/\/connectors\/health-all/.test(path))
     return {results: _DEMO_MEDIA_BASE.map(m => ({
@@ -9232,12 +8494,6 @@ function _initDemoMode() {
   [{key:'tiktok',name:'틱톡',color:'#000000'},{key:'youtube',name:'유튜브',color:'#FF0000'},
    {key:'karrot',name:'당근마켓',color:'#FF7E36'},{key:'naver_shopping',name:'네이버 쇼핑',color:'#00C73C'}
   ].forEach(m => MEDIA_DATA.push({...m, on:false, spend:0,imp:0,click:0,conv:0,revenue:0,ctr:0,cvr:0,roas:0,cpa:0,dailyBudget:0}));
-
-  // 규칙
-  rules = [
-    {id:'r1', name:'구글 ROAS 하락 알림',      media:'google', mediaName:'구글 Ads',    metric:'roas',  op:'<', threshold:300,      action:'alert', active:true, createdAt:'2026-06-20 09:00'},
-    {id:'r2', name:'카카오 예산 초과 자동중단', media:'kakao',  mediaName:'카카오모먼트', metric:'spend', op:'>', threshold:15000000, action:'pause', active:true, createdAt:'2026-06-15 14:30'},
-  ];
 
   // 사용자 · 계정 설정 후 대시보드 진입 (로그인 스킵)
   currentUser = {id:'u_master', name:'데모 관리자', email:'demo@deepfle.io', role:'master', avatar:'데', avatarColor:'#4F46E5'};

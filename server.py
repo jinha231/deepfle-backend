@@ -548,8 +548,8 @@ class Api:
         if role != "master":
             return 403, {"error": "마스터 권한이 필요합니다."}
         # 연관 데이터 삭제 (ON DELETE CASCADE 미지원 환경 대비)
-        for tbl in ("user_accounts", "ad_accounts", "rules", "rule_executions",
-                    "conversion_settings", "attribution_links", "audiences",
+        for tbl in ("user_accounts", "ad_accounts",
+                    "conversion_settings",
                     "manual_metrics", "audit_log", "report_config", "report_history",
                     "metric_data"):
             try:
@@ -1067,107 +1067,6 @@ class Api:
                         f"{row['name']} 예산 → {body['spend']}")
         conn.commit()
         return 200, {"ok": True}
-
-    # GET /api/accounts/:id/rules
-    @staticmethod
-    def list_rules(body, user, conn, params):
-        aid = params["account_id"]
-        role = account_role(conn, user["sub"], aid)
-        if not role:
-            return 403, {"error": "접근 권한이 없습니다."}
-        rows = conn.execute("SELECT * FROM rules WHERE account_id=? ORDER BY id", (aid,)).fetchall()
-        return 200, {"rules": [dict(r) for r in rows], "canEdit": can_edit(role)}
-
-    # POST /api/accounts/:id/rules  — 규칙 생성 (편집 권한)
-    @staticmethod
-    def create_rule(body, user, conn, params):
-        aid = params["account_id"]
-        role = account_role(conn, user["sub"], aid)
-        if not role:
-            return 403, {"error": "접근 권한이 없습니다."}
-        if not can_edit(role):
-            return 403, {"error": "편집 권한이 필요합니다."}
-        b = body or {}
-        name = (b.get("name") or "").strip()
-        if not name:
-            return 400, {"error": "규칙 이름은 필수입니다."}
-        cur = conn.execute(
-            "INSERT INTO rules (account_id,name,description,level,schedule,active) VALUES (?,?,?,?,?,?)",
-            (aid, name, b.get("description", ""), b.get("level", "캠페인"),
-             b.get("schedule", "실시간"), 1 if b.get("active", True) else 0),
-        )
-        rid = cur.lastrowid
-        write_audit(conn, aid, user, "rule_create", f"규칙 생성: {name}")
-        conn.commit()
-        row = conn.execute("SELECT * FROM rules WHERE id=?", (rid,)).fetchone()
-        return 200, {"ok": True, "rule": dict(row)}
-
-    # PATCH /api/rules/:id  {active?, name?, description?, level?, schedule?}  — 수정/토글 (편집 권한)
-    @staticmethod
-    def update_rule(body, user, conn, params):
-        rid = params["rule_id"]
-        rule = conn.execute("SELECT * FROM rules WHERE id=?", (rid,)).fetchone()
-        if not rule:
-            return 404, {"error": "규칙을 찾을 수 없습니다."}
-        role = account_role(conn, user["sub"], rule["account_id"])
-        if not role:
-            return 403, {"error": "접근 권한이 없습니다."}
-        if not can_edit(role):
-            return 403, {"error": "편집 권한이 필요합니다."}
-        b = body or {}
-        if "active" in b:
-            new_active = 1 if b["active"] else 0
-            conn.execute("UPDATE rules SET active=? WHERE id=?", (new_active, rid))
-            write_audit(conn, rule["account_id"], user, "rule_toggle",
-                        f"{rule['name']} → {'활성' if new_active else '비활성'}")
-        for f in ("name", "description", "level", "schedule"):
-            if f in b:
-                conn.execute(f"UPDATE rules SET {f}=? WHERE id=?", (b[f], rid))
-        conn.commit()
-        return 200, {"ok": True}
-
-    # DELETE /api/rules/:id  — 규칙 삭제 (편집 권한)
-    @staticmethod
-    def delete_rule(body, user, conn, params):
-        rid = params["rule_id"]
-        rule = conn.execute("SELECT * FROM rules WHERE id=?", (rid,)).fetchone()
-        if not rule:
-            return 404, {"error": "규칙을 찾을 수 없습니다."}
-        role = account_role(conn, user["sub"], rule["account_id"])
-        if not role:
-            return 403, {"error": "접근 권한이 없습니다."}
-        if not can_edit(role):
-            return 403, {"error": "편집 권한이 필요합니다."}
-        conn.execute("DELETE FROM rules WHERE id=?", (rid,))
-        write_audit(conn, rule["account_id"], user, "rule_delete", f"규칙 삭제: {rule['name']}")
-        conn.commit()
-        return 200, {"ok": True}
-
-    # GET /api/accounts/:id/rule-executions  — 자동 규칙 실행 로그 (계정별)
-    @staticmethod
-    def list_rule_executions(body, user, conn, params):
-        import json as _json
-        aid = params["account_id"]
-        role = account_role(conn, user["sub"], aid)
-        if not role:
-            return 403, {"error": "접근 권한이 없습니다."}
-        rows = conn.execute(
-            """SELECT e.*, r.name AS rule_name FROM rule_executions e
-               LEFT JOIN rules r ON r.id = e.rule_id
-               WHERE e.account_id=? AND e.mode='live'
-               ORDER BY e.id DESC LIMIT 50""",
-            (aid,),
-        ).fetchall()
-        out = []
-        for e in rows:
-            try:
-                impacts = _json.loads(e["affected"] or "[]")
-            except Exception:
-                impacts = []
-            out.append({"id": e["id"], "ruleName": e["rule_name"] or "(삭제된 규칙)",
-                        "executedAt": e["executed_at"], "undone": bool(e["undone"]),
-                        "impacts": impacts})
-        return 200, {"executions": out}
 
     # ───────── 설정: 전환설정 (계정별 전환 출처/네이밍 매핑) ─────────
     @staticmethod
@@ -2003,198 +1902,6 @@ class Api:
         ).fetchone()
         return 200, {"lastJob": dict(row) if row else None}
 
-    # POST /api/track/click  — 추적 링크 클릭 (공개 엔드포인트, click_id 발급)
-    @staticmethod
-    def track_click(body, user, conn, params):
-        import uuid
-        b = body or {}
-        aid = b.get("account_id")
-        if not aid:
-            return 400, {"error": "account_id가 필요합니다."}
-        click_id = "clk_" + uuid.uuid4().hex[:16]
-        conn.execute(
-            "INSERT INTO attr_clicks (click_id,account_id,link_name,media) VALUES (?,?,?,?)",
-            (click_id, aid, b.get("link_name", ""), b.get("media", "")),
-        )
-        conn.commit()
-        return 200, {"ok": True, "clickId": click_id}
-
-    # POST /api/track/conversion  — 전환 포스트백 (S2S, 디듑)
-    @staticmethod
-    def track_conversion(body, user, conn, params):
-        b = body or {}
-        click_id = b.get("click_id")
-        click = conn.execute("SELECT * FROM attr_clicks WHERE click_id=?", (click_id,)).fetchone()
-        if not click:
-            return 404, {"error": "유효하지 않은 click_id (클릭 기록 없음)"}
-        dedup = b.get("dedup_key") or (click_id + ":" + str(b.get("order_id", "")))
-        # 중복 전환 방지
-        existing = conn.execute("SELECT id FROM attr_conversions WHERE dedup_key=?", (dedup,)).fetchone()
-        if existing:
-            return 200, {"ok": True, "deduped": True}
-        conn.execute(
-            "INSERT INTO attr_conversions (click_id,account_id,value,dedup_key) VALUES (?,?,?,?)",
-            (click_id, click["account_id"], int(b.get("value", 0)), dedup),
-        )
-        conn.commit()
-        return 200, {"ok": True, "deduped": False}
-
-    # ───────── Phase 7: 자동화 안전장치 ─────────
-
-    # 규칙 → 영향받는 매체 + 액션 산정 (데모 규칙 엔진)
-    @staticmethod
-    def _evaluate_rule(conn, rule):
-        """규칙 조건에 해당하는 매체와 예상 변화를 계산 (실제 변경 X)."""
-        media = conn.execute(
-            "SELECT * FROM media WHERE account_id=? AND is_on=1", (rule["account_id"],)
-        ).fetchall()
-        impacts = []
-        name = rule["name"]
-        for m in media:
-            before, after, action = None, None, None
-            if "중지" in name:                      # 광고비 초과 자동 중지
-                if m["spend"] >= 5_000_000 and m["cpa"] >= 12000:
-                    action, before, after = "pause", "ON", "OFF"
-            elif "감소" in name:                    # ROAS 저하 예산 감소
-                if m["roas"] <= 350:
-                    action, before, after = "budget_down", m["spend"], int(m["spend"] * 0.8)
-            elif "증액" in name or "증가" in name:   # 고성과 예산 증액
-                if m["roas"] >= 500:
-                    action, before, after = "budget_up", m["spend"], int(m["spend"] * 1.1)
-            if action:
-                impacts.append({"mediaId": m["id"], "media": m["name"],
-                                "action": action, "before": before, "after": after})
-        return impacts
-
-    # POST /api/rules/:id/preview  — 드라이런 (영향 미리보기, 변경 없음)
-    @staticmethod
-    def rule_preview(body, user, conn, params):
-        rid = params["rule_id"]
-        rule = conn.execute("SELECT * FROM rules WHERE id=?", (rid,)).fetchone()
-        if not rule:
-            return 404, {"error": "규칙을 찾을 수 없습니다."}
-        role = account_role(conn, user["sub"], rule["account_id"])
-        if not role:
-            return 403, {"error": "접근 권한이 없습니다."}
-        impacts = Api._evaluate_rule(conn, rule)
-        return 200, {"ruleName": rule["name"], "impacts": impacts,
-                     "affectedCount": len(impacts), "mode": "dryrun"}
-
-    # POST /api/rules/:id/execute  — 실제 실행 (스냅샷 저장 + 일일 상한)
-    @staticmethod
-    def rule_execute(body, user, conn, params):
-        import json as _json
-        rid = params["rule_id"]
-        rule = conn.execute("SELECT * FROM rules WHERE id=?", (rid,)).fetchone()
-        if not rule:
-            return 404, {"error": "규칙을 찾을 수 없습니다."}
-        role = account_role(conn, user["sub"], rule["account_id"])
-        if not role:
-            return 403, {"error": "접근 권한이 없습니다."}
-        if not can_edit(role):
-            return 403, {"error": "편집 권한이 필요합니다."}
-
-        # 일일 자동변경 상한 체크
-        today_count = conn.execute(
-            """SELECT COUNT(*) AS c FROM rule_executions
-               WHERE account_id=? AND mode='live' AND undone=0
-               AND date(executed_at)=date('now')""",
-            (rule["account_id"],),
-        ).fetchone()["c"]
-        if today_count >= db.DAILY_CHANGE_LIMIT:
-            return 429, {"error": f"일일 자동변경 상한({db.DAILY_CHANGE_LIMIT}회)에 도달했습니다. "
-                                  f"안전을 위해 추가 자동변경이 차단됩니다."}
-
-        impacts = Api._evaluate_rule(conn, rule)
-        if not impacts:
-            return 200, {"ok": True, "affectedCount": 0, "message": "조건에 해당하는 매체가 없습니다."}
-
-             # 실제 적용 (DB 반영 + 매체 API write 호출)
-        for imp in impacts:
-            mrow = conn.execute("SELECT name FROM media WHERE id=?", (imp["mediaId"],)).fetchone()
-            aa = conn.execute(
-                "SELECT * FROM ad_accounts WHERE account_id=? AND status!='disconnected' LIMIT 1",
-                (rule["account_id"],)).fetchone()
-            conn_obj = get_connector(aa["media"]) if aa else None
-            token = os.environ.get(f"{aa['media'].upper()}_ACCESS_TOKEN", "") if aa else ""
-            if imp["action"] == "pause":
-                conn.execute("UPDATE media SET is_on=0 WHERE id=?", (imp["mediaId"],))
-                if conn_obj:
-                    imp["apiCall"] = conn_obj.pause_campaign(aa["external_id"] or "", token)
-            elif imp["action"] in ("budget_down", "budget_up"):
-                conn.execute("UPDATE media SET spend=? WHERE id=?", (imp["after"], imp["mediaId"]))
-                if conn_obj:
-                    imp["apiCall"] = conn_obj.update_budget(aa["external_id"] or "", int(imp["after"]), token)
-
-        cur = conn.execute(
-            "INSERT INTO rule_executions (rule_id,account_id,mode,affected) VALUES (?,?,'live',?)",
-            (rid, rule["account_id"], _json.dumps(impacts, ensure_ascii=False)),
-        )
-        exec_id = cur.lastrowid
-        conn.execute("UPDATE rules SET last_run=datetime('now') WHERE id=?", (rid,))
-        write_audit(conn, rule["account_id"], user, "rule_execute",
-                    f"{rule['name']} 실행 → {len(impacts)}개 매체 변경")
-        # 자동 알림 생성 (규칙 실행 결과 통지)
-        conn.execute(
-            "INSERT INTO notifications (account_id,level,channel,title,message) VALUES (?,?,?,?,?)",
-            (rule["account_id"], "warning", "email", f"[자동규칙] {rule['name']} 실행됨",
-             f"{len(impacts)}개 매체가 자동 조정되었습니다. 되돌리려면 실행 이력에서 복원하세요."),
-        )
-        conn.commit()
-        return 200, {"ok": True, "executionId": exec_id, "affectedCount": len(impacts),
-                     "impacts": impacts, "remainingToday": db.DAILY_CHANGE_LIMIT - today_count - 1}
-
-    # POST /api/rule-executions/:id/undo  — 되돌리기
-    @staticmethod
-    def rule_undo(body, user, conn, params):
-        import json as _json
-        eid = params["exec_id"]
-        ex = conn.execute("SELECT * FROM rule_executions WHERE id=?", (eid,)).fetchone()
-        if not ex:
-            return 404, {"error": "실행 이력을 찾을 수 없습니다."}
-        if ex["undone"]:
-            return 400, {"error": "이미 되돌려진 실행입니다."}
-        role = account_role(conn, user["sub"], ex["account_id"])
-        if not role or not can_edit(role):
-            return 403, {"error": "편집 권한이 필요합니다."}
-
-        impacts = _json.loads(ex["affected"] or "[]")
-
-        conn.execute("UPDATE rule_executions SET undone=1 WHERE id=?", (eid,))
-        write_audit(conn, ex["account_id"], user, "rule_undo",
-                    f"실행 #{eid} 되돌리기 → {len(impacts)}개 매체 복원")
-        conn.commit()
-        return 200, {"ok": True, "restoredCount": len(impacts)}
-
-    # GET /api/accounts/:id/attribution  — 매체별 어트리뷰션 집계 (라스트클릭)
-    @staticmethod
-    def attribution(body, user, conn, params):
-        aid = params["account_id"]
-        role = account_role(conn, user["sub"], aid)
-        if not role:
-            return 403, {"error": "접근 권한이 없습니다."}
-        rows = conn.execute(
-            """SELECT c.media AS media,
-                      COUNT(DISTINCT c.click_id) AS clicks,
-                      COUNT(v.id) AS conversions,
-                      COALESCE(SUM(v.value),0) AS revenue
-               FROM attr_clicks c
-               LEFT JOIN attr_conversions v ON v.click_id = c.click_id
-               WHERE c.account_id=?
-               GROUP BY c.media ORDER BY clicks DESC""",
-            (aid,),
-        ).fetchall()
-        out = []
-        for r in rows:
-            clicks = r["clicks"] or 0
-            convs = r["conversions"] or 0
-            out.append({
-                "media": r["media"] or "(direct)", "clicks": clicks, "conversions": convs,
-                "cvr": round(convs / clicks * 100, 2) if clicks else 0,
-                "revenue": r["revenue"],
-            })
-        return 200, {"attribution": out}
-
 
 # 라우팅 테이블: (METHOD, 정규식) → (핸들러, 인증필요)
 ROUTES = [
@@ -2253,11 +1960,6 @@ ROUTES = [
     ("GET",    r"^/api/accounts/(?P<account_id>[^/]+)/manual-conv-data$", Api.get_manual_conv_data,  True),
     ("POST",   r"^/api/accounts/(?P<account_id>[^/]+)/manual-conv-data$", Api.save_manual_conv_data, True),
     ("DELETE", r"^/api/accounts/(?P<account_id>[^/]+)/manual-conv-data$", Api.delete_manual_conv_data, True),
-    ("GET",  r"^/api/accounts/(?P<account_id>[^/]+)/rules$", Api.list_rules, True),
-    ("POST", r"^/api/accounts/(?P<account_id>[^/]+)/rules$", Api.create_rule, True),
-    ("PATCH", r"^/api/rules/(?P<rule_id>\d+)$",        Api.update_rule, True),
-    ("DELETE", r"^/api/rules/(?P<rule_id>\d+)$",       Api.delete_rule, True),
-    ("GET",  r"^/api/accounts/(?P<account_id>[^/]+)/rule-executions$", Api.list_rule_executions, True),
     # 설정: 전환설정 / 매체연동 매핑 / 지표 사전
     ("GET",  r"^/api/accounts/(?P<account_id>[^/]+)/conversion-settings$", Api.list_conversions, True),
     ("POST", r"^/api/accounts/(?P<account_id>[^/]+)/conversion-settings$", Api.create_conversion, True),
@@ -2282,13 +1984,6 @@ ROUTES = [
     # Phase 6: 데이터 파이프라인
     ("POST", r"^/api/accounts/(?P<account_id>[^/]+)/sync$",        Api.sync_media,    True),
     ("GET",  r"^/api/accounts/(?P<account_id>[^/]+)/sync-status$", Api.sync_status,   True),
-    ("GET",  r"^/api/accounts/(?P<account_id>[^/]+)/attribution$", Api.attribution,   True),
-    ("POST", r"^/api/track/click$",                    Api.track_click,      False),  # 공개 추적
-    ("POST", r"^/api/track/conversion$",               Api.track_conversion, False),  # S2S 포스트백
-    # Phase 7: 자동화 안전장치
-    ("POST", r"^/api/rules/(?P<rule_id>\d+)/preview$", Api.rule_preview, True),
-    ("POST", r"^/api/rules/(?P<rule_id>\d+)/execute$", Api.rule_execute, True),
-    ("POST", r"^/api/rule-executions/(?P<exec_id>\d+)/undo$", Api.rule_undo, True),
     # Phase 8: 운영 신뢰성
     ("PATCH", r"^/api/users/(?P<user_id>[^/]+)/accounts/(?P<account_id>[^/]+)$", Api.set_account_role, True),
     ("POST", r"^/api/accounts/(?P<account_id>[^/]+)/notify$",        Api.create_notification, True),

@@ -104,17 +104,6 @@ CREATE TABLE IF NOT EXISTS media (
     last_sync   TEXT
 );
 
-CREATE TABLE IF NOT EXISTS rules (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    account_id  TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    name        TEXT NOT NULL,
-    description TEXT,
-    level       TEXT,
-    schedule    TEXT,
-    active      INTEGER NOT NULL DEFAULT 1,
-    last_run    TEXT
-);
-
 -- 불변 감사 로그 (Phase 8 본격화, 구조는 지금 마련)
 CREATE TABLE IF NOT EXISTS audit_log (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -136,37 +125,6 @@ CREATE TABLE IF NOT EXISTS sync_jobs (
     media_count  INTEGER DEFAULT 0,
     started_at   TEXT DEFAULT (datetime('now')),
     finished_at  TEXT
-);
-
--- 어트리뷰션: 클릭 기록 (추적 링크 클릭 시 click_id 발급)
-CREATE TABLE IF NOT EXISTS attr_clicks (
-    click_id    TEXT PRIMARY KEY,
-    account_id  TEXT NOT NULL,
-    link_name   TEXT,
-    media       TEXT,
-    ts          TEXT DEFAULT (datetime('now'))
-);
-
--- 어트리뷰션: 전환 포스트백 (click_id 매핑 + 디듑)
-CREATE TABLE IF NOT EXISTS attr_conversions (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    click_id    TEXT NOT NULL,
-    account_id  TEXT NOT NULL,
-    value       INTEGER DEFAULT 0,
-    dedup_key   TEXT UNIQUE,           -- 동일 전환 중복집계 방지
-    ts          TEXT DEFAULT (datetime('now'))
-);
-
--- ───────── Phase 7: 자동화 안전장치 ─────────
--- 규칙 실행 이력 (변경 전 스냅샷 보관 → undo 가능)
-CREATE TABLE IF NOT EXISTS rule_executions (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    rule_id     INTEGER NOT NULL,
-    account_id  TEXT NOT NULL,
-    mode        TEXT NOT NULL,         -- dryrun|live
-    affected    TEXT,                  -- JSON: 영향받은 매체와 before/after
-    undone      INTEGER NOT NULL DEFAULT 0,
-    executed_at TEXT DEFAULT (datetime('now'))
 );
 
 -- ───────── Phase 8: 운영 신뢰성 ─────────
@@ -409,8 +367,6 @@ PRODUCT_TYPE_SPLITS = {
     "naver_sa": {"WEB_SITE": 0.80, "BRAND": 0.20},
 }
 
-SEED_RULES = []
-
 # 광고 계층 시드: (media_key, campaign, campaign_type, adgroup, keyword, creative, cost_ratio)
 # ratio는 해당 매체 일별 총 비용 대비 비중 (매체별 합계 = 1.0)
 # device 브레이크다운은 DEVICE_SPLITS를 곱해 자동 생성
@@ -579,7 +535,6 @@ def init_db(reset=False):
                 DELETE FROM metric_data;
                 DELETE FROM ad_hierarchy;
                 DELETE FROM campaign_metrics;
-                DELETE FROM rules;
                 DELETE FROM users WHERE id NOT IN ('u_master');
                 DELETE FROM accounts WHERE id IN ('acc1','acc2','acc3','acc4','acc5','acc6');
                 DELETE FROM ad_accounts;
@@ -650,12 +605,6 @@ def init_db(reset=False):
                 (aid, name, color, int(spend*scale), int(imp*scale), int(click*scale),
                  int(cvr*scale), roas, cpa, is_on, conn_, media_key),
             )
-    # rules
-    for r in SEED_RULES:
-        conn.execute(
-            "INSERT INTO rules (account_id,name,description,level,schedule,active,last_run) VALUES (?,?,?,?,?,?,?)",
-            r,
-        )
     # conversion_settings (전환설정)
     for acc, src, sm, sol, vt in SEED_CONVERSION:
         conn.execute(
