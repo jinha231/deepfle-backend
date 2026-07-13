@@ -1044,36 +1044,15 @@ async function _renderDashBody() {
     __conv_primary:{val:fmtN(effectiveTotalConv),sub:`CVR ${(cvr*100).toFixed(2)}%`,raw:effectiveTotalConv,compRaw:dashCompData?dashCompData.conv:null},
     revenue:{val:fmtW(totalRev),sub:`CPA ${fmtW(Math.round(cpa))}`,raw:totalRev,compRaw:dashCompData?dashCompData.rev:null},
   };
-  // 전역 KPI 값 저장 (알림 계산용)
-  window._dashCurrentKpis = { roas, cpa, ctr, cvr, cost: totalCost };
   refreshAlertBell();
 
   const selectedPool = pool.filter(p=>selKeys.includes(p.key));
   const kpiCards = selectedPool.map(p=>{
     const v=kpiVals[p.key]||{val:'-',sub:'',raw:0,compRaw:null};
     const badge = dashComparing ? _dashCompBadge(v.raw, v.compRaw, p.type) : '';
-    const tgtBar = _dashKpiTargetBar(p.key, v.raw);
-    return `<div class="mr-kpi-card" draggable="true" data-key="${p.key}" ondragstart="onKpiDragStart(event)" ondragover="onKpiDragOver(event)" ondragenter="onKpiDragEnter(event)" ondragleave="onKpiDragLeave(event)" ondrop="onKpiDrop(event,saveDashKpiKeys,_renderDashBody)" ondragend="onKpiDragEnd(event)"><div class="drag-handle">⠿</div><div class="mr-kpi-label">${p.label}</div><div class="mr-kpi-val">${v.val}</div><div class="mr-kpi-sub">${v.sub}</div>${badge}${tgtBar}</div>`;
+    return `<div class="mr-kpi-card" draggable="true" data-key="${p.key}" ondragstart="onKpiDragStart(event)" ondragover="onKpiDragOver(event)" ondragenter="onKpiDragEnter(event)" ondragleave="onKpiDragLeave(event)" ondrop="onKpiDrop(event,saveDashKpiKeys,_renderDashBody)" ondragend="onKpiDragEnd(event)"><div class="drag-handle">⠿</div><div class="mr-kpi-label">${p.label}</div><div class="mr-kpi-val">${v.val}</div><div class="mr-kpi-sub">${v.sub}</div>${badge}</div>`;
   }).join('');
 
-  // 이상 감지 배너
-  const _dashAlerts = _computeAlerts();
-  const _alertBanner = (() => {
-    if (_dashAlerts.length === 0) return '';
-    const hasDanger = _dashAlerts.some(a=>a.sev==='danger');
-    const cls = hasDanger ? 'danger' : 'warning';
-    const icon = hasDanger ? '🔴' : '🟡';
-    const top3 = _dashAlerts.slice(0,3).map(a=>`<span style="font-size:11px;background:rgba(0,0,0,.06);border-radius:4px;padding:1px 6px;margin-left:4px;">${a.label}</span>`).join('');
-    const more = _dashAlerts.length > 3 ? `<span style="font-size:11px;color:inherit;margin-left:4px;">외 ${_dashAlerts.length-3}건</span>` : '';
-    return `<div class="dash-alert-banner ${cls}">
-      <span style="font-size:20px;flex-shrink:0;">${icon}</span>
-      <div style="flex:1;">
-        <div style="font-size:13px;font-weight:700;margin-bottom:3px;">KPI 이상 감지 — ${_dashAlerts.length}건의 목표 미달/초과 항목이 있습니다</div>
-        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:2px;">${top3}${more}</div>
-      </div>
-      <button class="btn btn-xs btn-outline" style="flex-shrink:0;" onclick="toggleAlertDropdown()">상세 보기</button>
-    </div>`;
-  })();
   const pickerItems = pool.map(p=>{const chk=selKeys.includes(p.key)?'checked':'';return `<label class="mr-kpi-picker-item"><input type="checkbox" value="${p.key}" ${chk} onchange="onDashKpiCheckChange()">${p.label}</label>`;}).join('');
 
   // Table columns
@@ -1178,7 +1157,6 @@ async function _renderDashBody() {
     : '';
 
   body.innerHTML = `
-    ${_alertBanner}
     <!-- Period info -->
     <div class="card" style="margin-bottom:16px;">
       <div class="card-header">
@@ -4241,27 +4219,7 @@ let _rsConfigs = [];
 let _rsHistory = [];
 let _rsEditIdx = -1;
 
-function switchRsTab(el, name) {
-  el.closest('.tab-pills').querySelectorAll('.tab-pill').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  ['conversion','manual-data'].forEach(t=>{
-    const e=document.getElementById('rs-'+t); if(e) e.style.display=t===name?'block':'none';
-  });
-  if(name==='conversion') renderConversionSettings();
-  if(name==='manual-data') renderManualConvData();
-}
-
 async function renderReportSettings() {
-  // 첫 탭(수기 전환 데이터 입력)을 기본으로 표시
-  ['conversion'].forEach(t=>{
-    const e=document.getElementById('rs-'+t); if(e) e.style.display='none';
-  });
-  const manEl=document.getElementById('rs-manual-data');
-  if(manEl) manEl.style.display='block';
-  // 탭 pill 활성화 상태 동기화
-  const pills=document.querySelectorAll('#panel-report-set .tab-pill');
-  pills.forEach(p=>p.classList.remove('active'));
-  if(pills[0]) pills[0].classList.add('active');
   renderManualConvData();
 }
 
@@ -5162,7 +5120,7 @@ function disconnectMedia(name) {
 function switchSettingGroup(el, groupName) {
   document.getElementById('settingPrimaryTabs').querySelectorAll('.tab-pill').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  ['report','goals'].forEach(g=>{
+  ['report','conversion'].forEach(g=>{
     const e=document.getElementById('settingGroup-'+g); if(e) e.style.display=g===groupName?'block':'none';
   });
   if(groupName==='report') {
@@ -5170,31 +5128,30 @@ function switchSettingGroup(el, groupName) {
     const connCard=document.getElementById('subCard-connection');
     if(connCard) switchSettingSubTab(connCard,'connection','report');
   }
-  if(groupName==='goals') { renderSettingKpiTargets(); }
+  if(groupName==='conversion') { renderConversionSettings(); }
 }
 
 function switchSettingSubTab(el, tabName, groupName) {
   const group=document.getElementById('settingGroup-'+groupName);
   if(group) group.querySelectorAll('.setting-sub-card').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
-  const tabsMap={report:['markup','connection','mapping'],goals:['kpi','alert']};
+  const tabsMap={report:['markup','connection','mapping']};
   (tabsMap[groupName]||[]).forEach(t=>{
     const e=document.getElementById('setting-'+t); if(e) e.style.display=t===tabName?'block':'none';
   });
   if(tabName==='connection') { renderConnectorMatrix(); renderSettingConnection(); }
-  if(tabName==='kpi') { renderSettingKpiTargets(); }
   if(tabName==='markup') { renderMarkupSettings(); }
   if(tabName==='mapping') { renderSettingMediaMapping(); }
 }
 
 function switchSettingTab(el, name) {
-  const groupMap={markup:'report',connection:'report',mapping:'report',kpi:'goals',alert:'goals'};
+  const groupMap={markup:'report',connection:'report',mapping:'report'};
   const gName=groupMap[name]||'report';
   const primaryPill=document.querySelector(`#settingPrimaryTabs .tab-pill[onclick*="'${gName}'"]`);
   if(primaryPill) {
     document.getElementById('settingPrimaryTabs').querySelectorAll('.tab-pill').forEach(t=>t.classList.remove('active'));
     primaryPill.classList.add('active');
-    ['report','goals'].forEach(g=>{const e=document.getElementById('settingGroup-'+g);if(e)e.style.display=g===gName?'block':'none';});
+    ['report','conversion'].forEach(g=>{const e=document.getElementById('settingGroup-'+g);if(e)e.style.display=g===gName?'block':'none';});
   }
   const subCard=document.getElementById('subCard-'+name);
   if(subCard) switchSettingSubTab(subCard, name, gName);
@@ -5287,60 +5244,10 @@ const EXT_CONNECT_FIELDS = {
 };
 
 // ============================================================
-// KPI 목표치 / 이상 감지 알림
+// 일일 소진한도
 // ============================================================
 // 일일 소진한도 기능 ON/OFF — 계정별 로드 (_loadAccountSettings)
 let USE_DAILY_BUDGET = false;
-
-const KPI_TARGET_SCHEMA = [
-  { key:'roas', label:'ROAS 목표',  unit:'%',  placeholder:'예: 400',   hint:'현재 대비 목표 ROAS (%). 미달 시 경고.',  higherBetter:true },
-  { key:'cpa',  label:'CPA 목표',   unit:'원', placeholder:'예: 50000', hint:'목표 CPA (원). 초과 시 경고.',             higherBetter:false },
-  { key:'ctr',  label:'CTR 목표',   unit:'%',  placeholder:'예: 2.0',   hint:'목표 CTR (%). 미달 시 경고.',              higherBetter:true },
-  { key:'cvr',  label:'CVR 목표',   unit:'%',  placeholder:'예: 1.5',   hint:'목표 전환율 (%). 미달 시 경고.',           higherBetter:true },
-];
-
-function _getKpiTargets() { return JSON.parse(localStorage.getItem(_accKey('deepfle_kpi_targets')) || '{}'); }
-function _saveKpiTargets(d) { localStorage.setItem(_accKey('deepfle_kpi_targets'), JSON.stringify(d)); }
-
-function renderSettingKpiTargets() {
-  const el = document.getElementById('kpiTargetBody');
-  if (!el) return;
-  const targets = _getKpiTargets();
-  const editable = CAN_EDIT(currentUser?.role);
-
-  el.innerHTML = KPI_TARGET_SCHEMA.map(s => {
-    const val = targets[s.key] !== undefined ? targets[s.key] : '';
-    const hasVal = val !== '';
-    return `<div class="kpi-target-row">
-      <div>
-        <div style="font-size:13px;font-weight:600;">${s.label}</div>
-        <div style="font-size:11px;color:var(--gray-400);margin-top:2px;">${s.hint}</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <input class="form-input" id="kpiTgt_${s.key}" type="number" min="0"
-          style="width:120px;height:32px;font-size:13px;text-align:right;"
-          placeholder="${s.placeholder}" value="${val}"
-          ${!editable ? 'disabled' : ''}>
-        <span style="font-size:12px;color:var(--gray-400);width:20px;">${s.unit}</span>
-        ${hasVal ? `<span style="font-size:11px;color:var(--success);">설정됨</span>` : `<span style="font-size:11px;color:var(--gray-400);">미설정</span>`}
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function saveAllKpiTargets() {
-  const d = {};
-  KPI_TARGET_SCHEMA.forEach(s => {
-    const el = document.getElementById('kpiTgt_' + s.key);
-    const v = el?.value?.trim();
-    if (v !== '' && !isNaN(Number(v))) d[s.key] = Number(v);
-  });
-  _saveKpiTargets(d);
-  showToast('KPI 목표치가 저장되었습니다', 'success');
-  renderSettingKpiTargets();
-  refreshAlertBell();
-  if (document.getElementById('panel-overview')?.classList.contains('active')) _renderDashBody();
-}
 
 function renderDailyBudgetSettings() {
   const el = document.getElementById('dailyBudgetBody');
@@ -5435,107 +5342,7 @@ function saveDailyBudgets() {
   _renderDashBody();
 }
 
-// 현재 대시보드 KPI 값 전역 저장 (알림 계산용)
-window._dashCurrentKpis = {};
-
-function _computeAlerts() {
-  const targets = _getKpiTargets();
-  const cur = window._dashCurrentKpis;
-  if (!targets || !cur || Object.keys(cur).length === 0) return [];
-
-  const alerts = [];
-
-  function check(key, currentRaw, targetVal, higherBetter, labelFn, fmtFn) {
-    if (targetVal === undefined || targetVal === null || targetVal === '') return;
-    const ratio = higherBetter ? currentRaw / targetVal : targetVal / currentRaw;
-    if (!isFinite(ratio) || ratio >= 1.0) return;
-    const pct = ((1 - ratio) * 100).toFixed(1);
-    const sev = ratio < 0.8 ? 'danger' : 'warning';
-    alerts.push({
-      sev,
-      label: labelFn(),
-      desc: `현재 ${fmtFn(currentRaw)} / 목표 ${fmtFn(targetVal)} (${pct}% ${higherBetter ? '미달' : '초과'})`,
-    });
-  }
-
-  check('roas', (cur.roas||0)*100,  targets.roas,  true,
-    ()=>'ROAS 목표 미달', v=>v.toFixed(0)+'%');
-  check('cpa',  cur.cpa||0,         targets.cpa,   false,
-    ()=>'CPA 목표 초과',  v=>fmtW(Math.round(v)));
-  check('ctr',  (cur.ctr||0)*100,   targets.ctr,   true,
-    ()=>'CTR 목표 미달',  v=>v.toFixed(2)+'%');
-  check('cvr',  (cur.cvr||0)*100,   targets.cvr,   true,
-    ()=>'CVR 목표 미달',  v=>v.toFixed(2)+'%');
-  // 매체별 ROAS 체크
-  if (targets.roas) {
-    MEDIA_DATA.filter(m=>m.on).forEach(m => {
-      if (m.roas < targets.roas * 0.8) {
-        alerts.push({
-          sev: 'warning',
-          label: `${m.name} ROAS 미달`,
-          desc: `현재 ${m.roas}% / 목표 ${targets.roas}%`,
-        });
-      }
-    });
-  }
-
-  // 매체별 일일 소진한도 체크
-  if (USE_DAILY_BUDGET) {
-    const days = window._globalFrom && window._globalTo
-      ? Math.max(1, Math.round((new Date(window._globalTo)-new Date(window._globalFrom))/86400000)+1)
-      : 30;
-    MEDIA_DATA.filter(m=>m.on && m.dailyBudget > 0).forEach(m => {
-      const avgDailySpend = _markupCost(m.spend, m.key||'') / days;
-      const ratio = avgDailySpend / m.dailyBudget;
-      if (ratio >= 0.9) {
-        alerts.push({
-          sev: ratio >= 1.0 ? 'danger' : 'warning',
-          label: `${m.name} 일일예산 ${ratio>=1.0?'초과':'근접'}`,
-          desc: `일평균 ${fmtW(Math.round(avgDailySpend))} / 한도 ${fmtW(m.dailyBudget)} (${(ratio*100).toFixed(0)}%)`,
-        });
-      }
-    });
-  }
-
-  return alerts;
-}
-
-function _dashKpiTargetBar(key, raw) {
-  const targets = _getKpiTargets();
-  const target = targets[key];
-  if (target === undefined || target === null || target === '') return '';
-
-  const schema = KPI_TARGET_SCHEMA.find(s => s.key === key);
-  if (!schema) return '';
-
-  let currentDisplay, targetDisplay;
-  if (key === 'roas' || key === 'ctr' || key === 'cvr') {
-    currentDisplay = (raw * 100).toFixed(key==='roas'?0:2) + '%';
-    targetDisplay  = target + '%';
-  } else {
-    currentDisplay = fmtW(Math.round(raw));
-    targetDisplay  = fmtW(target);
-  }
-
-  const ratio = schema.higherBetter ? (raw*100) / target : target / raw;
-  let cls, icon;
-  if (!isFinite(ratio) || ratio >= 1.0) { cls='kpi-target-ok';   icon='✅'; }
-  else if (ratio >= 0.85)               { cls='kpi-target-warn';  icon='⚠️'; }
-  else                                  { cls='kpi-target-miss';  icon='❌'; }
-
-  // cost는 raw가 이미 원 단위
-  if (key === 'cost') {
-    const rr = target / raw;
-    if (rr >= 1.0) { cls='kpi-target-ok'; icon='✅'; }
-    else if (rr >= 0.85) { cls='kpi-target-warn'; icon='⚠️'; }
-    else { cls='kpi-target-miss'; icon='❌'; }
-  }
-
-  return `<div class="kpi-target-bar ${cls}">${icon} 목표 ${targetDisplay}</div>`;
-}
-
 async function refreshAlertBell() {
-  const alerts = _computeAlerts();
   const badge = document.getElementById('alertBadge');
   if (!badge) return;
   let serverUnread = 0;
@@ -5545,9 +5352,8 @@ async function refreshAlertBell() {
       serverUnread = res.unread || 0;
     }
   } catch(e) {}
-  const total = alerts.length + serverUnread;
-  if (total > 0) {
-    badge.textContent = total > 9 ? '9+' : total;
+  if (serverUnread > 0) {
+    badge.textContent = serverUnread > 9 ? '9+' : serverUnread;
     badge.style.display = 'flex';
   } else {
     badge.style.display = 'none';
@@ -5560,33 +5366,16 @@ async function toggleAlertDropdown() {
   const isOpen = drop.classList.contains('open');
 
   if (!isOpen) {
-    const alerts = _computeAlerts();
-    const targets = _getKpiTargets();
-    const hasTargets = Object.keys(targets).length > 0;
-
-    // 로컬 KPI 알림 HTML
-    const kpiItemsHtml = alerts.length > 0
-      ? alerts.map(a => `
-          <div class="alert-item">
-            <div class="alert-item-icon">${a.sev==='danger'?'🔴':'🟡'}</div>
-            <div>
-              <div class="alert-item-lbl">${a.label}</div>
-              <div class="alert-item-desc">${a.desc}</div>
-            </div>
-          </div>`).join('')
-      : hasTargets
-        ? `<div style="padding:16px 16px 0;text-align:center;font-size:12px;color:var(--gray-400);">✅ 모든 KPI가 목표를 달성하고 있습니다</div>`
-        : `<div style="padding:16px 16px 0;text-align:center;font-size:12px;color:var(--gray-400);">KPI 목표치가 설정되지 않았습니다<br><button class="btn btn-xs btn-outline" style="margin-top:8px;" onclick="showPanel('settings');setTimeout(()=>switchSettingTab(document.querySelector('.tab-pill[onclick*=kpi]'),\\'kpi\\'),150);toggleAlertDropdown();">목표 설정하기</button></div>`;
-
     // 서버 알림 로드
-    let serverNotifHtml = '';
+    let serverNotifHtml = `<div style="padding:16px 16px 0;text-align:center;font-size:12px;color:var(--gray-400);">알림이 없습니다</div>`;
+    let unread = 0;
     try {
       const res = await DEEPFLE_API.get(`/accounts/${currentAccount.id}/notifications`);
       const notifs = (res.notifications || []).slice(0, 5);
+      unread = res.unread || 0;
       if (notifs.length) {
         const LEVEL_ICON = {info:'🔵', warning:'🟡', error:'🔴', success:'🟢'};
-        serverNotifHtml = `<div style="padding:8px 16px 4px;font-size:10px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.05em;border-top:1px solid var(--gray-100);margin-top:4px;">시스템 알림</div>`
-          + notifs.map(n=>`
+        serverNotifHtml = notifs.map(n=>`
             <div class="alert-item">
               <div class="alert-item-icon">${LEVEL_ICON[n.level]||'🔵'}</div>
               <div>
@@ -5594,22 +5383,19 @@ async function toggleAlertDropdown() {
                 <div class="alert-item-desc">${n.message||''}</div>
               </div>
             </div>`).join('');
-        // 읽음 처리 (unread 배지 업데이트)
-        const badge = document.getElementById('alertBadge');
-        if (badge && res.unread > 0) {
-          const total = alerts.length + res.unread;
-          badge.textContent = total > 9 ? '9+' : total;
-          badge.style.display = 'flex';
-        }
+      }
+      // 읽음 처리 (unread 배지 업데이트)
+      const badge = document.getElementById('alertBadge');
+      if (badge) {
+        if (unread > 0) { badge.textContent = unread > 9 ? '9+' : unread; badge.style.display = 'flex'; }
+        else badge.style.display = 'none';
       }
     } catch(e) {}
 
     drop.innerHTML = `
       <div class="alert-drop-hd">
-        <span>알림 ${alerts.length > 0 ? `<span class="badge badge-red" style="margin-left:4px;">${alerts.length}</span>` : ''}</span>
-        <button class="btn btn-xs btn-outline" onclick="showPanel('settings');setTimeout(()=>switchSettingTab(document.querySelector('.tab-pill[onclick*=kpi]'),\\'kpi\\'),150);toggleAlertDropdown();">목표 설정</button>
+        <span>알림</span>
       </div>
-      ${kpiItemsHtml}
       ${serverNotifHtml}`;
     drop.classList.add('open');
 

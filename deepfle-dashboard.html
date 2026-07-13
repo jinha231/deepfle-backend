@@ -199,11 +199,7 @@ input,select,textarea{font-family:inherit;}
 .share-footer{text-align:center;padding:20px 32px;font-size:11px;color:var(--gray-400);border-top:1px solid var(--gray-200);margin-top:8px;}
 .share-expired{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;padding:40px;}
 @media print{.share-header-actions{display:none!important;} body{background:#fff;}}
-/* ===== KPI 목표치 / 이상 감지 알림 ===== */
-.kpi-target-bar{font-size:10px;margin-top:5px;padding:2px 7px;border-radius:4px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;}
-.kpi-target-ok{background:#ECFDF5;color:#065F46;}
-.kpi-target-warn{background:#FFFBEB;color:#92400E;}
-.kpi-target-miss{background:#FEF2F2;color:#991B1B;}
+/* ===== 알림 ===== */
 .alert-bell-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;}
 .alert-badge{position:absolute;top:-5px;right:-5px;background:var(--danger);color:#fff;font-size:9px;font-weight:700;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;pointer-events:none;line-height:1;}
 .alert-dropdown{position:absolute;right:0;top:calc(100% + 8px);width:320px;background:#fff;border:1px solid var(--gray-200);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:200;overflow:hidden;display:none;}
@@ -214,11 +210,6 @@ input,select,textarea{font-family:inherit;}
 .alert-item-icon{font-size:14px;flex-shrink:0;margin-top:1px;}
 .alert-item-lbl{font-weight:600;color:var(--gray-900);}
 .alert-item-desc{font-size:11px;color:var(--gray-500);margin-top:1px;}
-.dash-alert-banner{display:flex;align-items:flex-start;gap:12px;padding:11px 14px;border-radius:10px;margin-bottom:14px;border:1px solid;}
-.dash-alert-banner.warning{background:#FFFBEB;border-color:#FCD34D;}
-.dash-alert-banner.danger{background:#FEF2F2;border-color:#FECACA;}
-.kpi-target-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);}
-.kpi-target-row:last-child{border-bottom:none;}
 .memo-icon:hover{opacity:1;transform:scale(1.2);}
 .insight-card{border:1px solid var(--gray-200,#E2E8F0);border-radius:8px;padding:12px 14px;margin-bottom:8px;background:#fff;}
 .insight-card .insight-date{font-size:11px;font-weight:600;color:var(--primary,#4F46E5);margin-bottom:4px;}
@@ -842,24 +833,7 @@ tr:hover td{background:var(--gray-50);}
         <div class="section-header">
           <div class="section-title">전환데이터 입력</div>
         </div>
-        <div class="tab-pills" style="margin-bottom:16px;">
-          <div class="tab-pill active" onclick="switchRsTab(this,'manual-data')">수기 전환 데이터 입력</div>
-          <div class="tab-pill" onclick="switchRsTab(this,'conversion')">전환설정</div>
-        </div>
-        <div id="rs-conversion" style="display:none;">
-          <div class="card">
-            <div class="card-header">
-              <div><div class="card-title">전환설정</div><div class="card-sub">전환 출처 지표명 → 솔루션 전환 지표명 매핑</div></div>
-              <button class="btn btn-primary btn-sm" id="convAddBtn" onclick="addConversionRow()">+ 전환 지표 추가</button>
-            </div>
-            <div style="font-size:11px;color:var(--gray-400);margin:2px 0 10px;">계정마다 전환 네이밍이 달라, 출처에서 불러오는 지표명과 솔루션에서 쓸 이름을 매핑합니다. (GA4 · 에이스카운터 · MMP · 직접입력)</div>
-            <div id="conversionArea">불러오는 중…</div>
-          </div>
-        </div>
-        <div id="rs-manual-data" style="display:none;">
-          <div id="manualConvBody"></div>
-        </div>
-        <!-- rs-bulk removed: 리포트 컬럼 설정은 설정 메뉴로 이동됨 -->
+        <div id="manualConvBody"></div>
       </div>
 
       <!-- ===== RAW UPLOAD ===== -->
@@ -890,7 +864,7 @@ tr:hover td{background:var(--gray-50);}
           <!-- Primary GNB: 2 groups (내 계정은 별도 모달로 분리) -->
           <div class="tab-pills" id="settingPrimaryTabs" style="margin-bottom:24px;">
             <div class="tab-pill active" onclick="switchSettingGroup(this,'report')">리포트 설정</div>
-            <div class="tab-pill" onclick="switchSettingGroup(this,'goals')">목표설정 및 알림</div>
+            <div class="tab-pill" onclick="switchSettingGroup(this,'conversion')">전환설정</div>
           </div>
 
           <!-- ── GROUP: 리포트 설정 ── -->
@@ -921,7 +895,7 @@ tr:hover td{background:var(--gray-50);}
                 <div class="card-header">
                   <div>
                     <div class="card-title">매체별 전환 트래커 연결</div>
-                    <div class="card-sub">운영 중인 매체의 전환 픽셀 ID 설정 (GA4·MMP 등 외부 솔루션 연동은 리포트 설정 &gt; 전환설정에서 관리합니다)</div>
+                    <div class="card-sub">운영 중인 매체의 전환 픽셀 ID 설정 (GA4·MMP 등 외부 솔루션 연동은 설정 &gt; 전환설정에서 관리합니다)</div>
                   </div>
                 </div>
                 <div id="settingConnectionBody" style="margin-top:8px;"></div>
@@ -929,39 +903,19 @@ tr:hover td{background:var(--gray-50);}
             </div>
           </div>
 
-          <!-- ── GROUP: 목표설정 및 알림 ── -->
-          <div id="settingGroup-goals" style="display:none;">
+          <!-- ── GROUP: 전환설정 (구 전환데이터 입력 > 전환설정에서 이동) ── -->
+          <div id="settingGroup-conversion" style="display:none;">
             <div class="setting-group-banner">
-              <div class="setting-group-banner-title">목표설정 및 알림</div>
-              <div class="setting-group-banner-desc">KPI 목표치를 설정하고 달성 · 이탈 시 자동 알림을 받습니다</div>
+              <div class="setting-group-banner-title">전환설정</div>
+              <div class="setting-group-banner-desc">전환 출처 지표명 → 솔루션 전환 지표명 매핑</div>
             </div>
-            <div class="setting-sub-grid" style="grid-template-columns:repeat(2,1fr);max-width:600px;">
-              <div class="setting-sub-card active" id="subCard-kpi" onclick="switchSettingSubTab(this,'kpi','goals')">
-                <div class="setting-sub-card-label">KPI 목표</div>
-                <div class="setting-sub-card-desc">ROAS · CPA · CTR 등 매체별 KPI 목표치를 설정합니다</div>
+            <div class="card" style="max-width:860px;">
+              <div class="card-header">
+                <div><div class="card-title">전환설정</div><div class="card-sub">전환 출처 지표명 → 솔루션 전환 지표명 매핑</div></div>
+                <button class="btn btn-primary btn-sm" id="convAddBtn" onclick="addConversionRow()">+ 전환 지표 추가</button>
               </div>
-              <div class="setting-sub-card" id="subCard-alert" onclick="switchSettingSubTab(this,'alert','goals')">
-                <div class="setting-sub-card-label">알림</div>
-                <div class="setting-sub-card-desc">KPI 이상 감지 · 예산 소진 · 주간 리포트 알림 채널을 설정합니다</div>
-              </div>
-            </div>
-            <div id="setting-kpi" style="max-width:680px;">
-              <div class="card" style="margin-bottom:12px;">
-                <div class="card-header">
-                  <div><div class="card-title">KPI 목표치 설정</div><div class="card-sub">목표 대비 현황이 대시보드 KPI 카드와 알림에 반영됩니다</div></div>
-                  <button class="btn btn-sm btn-primary" onclick="saveAllKpiTargets()">저장</button>
-                </div>
-                <div id="kpiTargetBody" style="margin-top:12px;"></div>
-              </div>
-            </div>
-            <div id="setting-alert" style="display:none;max-width:680px;">
-              <div class="card">
-                <div class="card-header"><div class="card-title">알림 채널 설정</div></div>
-                <div style="display:flex;flex-direction:column;gap:14px;margin-top:8px;">
-                  <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;"><span>규칙 실행 알림 (이메일)</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
-                  <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;"><span>주간 리포트 자동 발송</span><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
-                </div>
-              </div>
+              <div style="font-size:11px;color:var(--gray-400);margin:2px 0 10px;">계정마다 전환 네이밍이 달라, 출처에서 불러오는 지표명과 솔루션에서 쓸 이름을 매핑합니다. (GA4 · 에이스카운터 · MMP · 직접입력)</div>
+              <div id="conversionArea">불러오는 중…</div>
             </div>
           </div>
 
@@ -1222,7 +1176,7 @@ tr:hover td{background:var(--gray-50);}
 
 <div class="toast-container" id="toastContainer"></div>
 
-<script src="deepfle-main.js?v=20250710n"></script>
+<script src="deepfle-main.js?v=20250710o"></script>
 <script src="deepfle-features.js?v=20250706b"></script>
 
 <!-- ===== HELP GUIDE MODAL ===== -->
@@ -1266,7 +1220,7 @@ const _HELP_STEPS = [
   {badge:'STEP 3',icon:'🎯',title:'전환 지표 설정',
    desc:'어떤 사용자 행동을 "전환"으로 볼지 정의합니다. ROAS·CPA 계산의 기준이 됩니다.',
    items:[
-     {icon:'⚙️',label:'전환 이벤트 추가',text:'전환데이터 입력 → 전환설정에서 구매·회원가입·상담신청 등 이벤트를 등록합니다.'},
+     {icon:'⚙️',label:'전환 이벤트 추가',text:'설정 → 전환설정에서 구매·회원가입·상담신청 등 이벤트를 등록합니다.'},
      {icon:'💰',label:'전환값 설정',text:'이벤트별 가치(예: 구매 = 평균 주문금액)를 입력하면 ROAS가 자동 계산됩니다.'},
      {icon:'📝',label:'수기 전환 보완',text:'오프라인 성약·상담 완료 등 비추적 전환은 수기 입력으로 보완합니다.'},
    ]},
@@ -1276,27 +1230,20 @@ const _HELP_STEPS = [
      {icon:'🗂️',label:'필드 매핑',text:'설정 → 리포트 컬럼 설정에서 매체별 API 필드명(예: spend, impressions)을 입력합니다.'},
      {icon:'💹',label:'마크업 설정',text:'설정 → 마크업에서 광고비 마크업 비율을 설정하면 리포트에 자동 반영됩니다.'},
    ]},
-  {badge:'STEP 5',icon:'🔔',title:'KPI 목표 & 알림',
-   desc:'목표 KPI를 입력하고 이탈 시 즉시 알림을 받아 빠르게 대응하세요.',
-   items:[
-     {icon:'📈',label:'KPI 목표 입력',text:'설정 → KPI 목표에서 ROAS · CPA · CTR 등 목표치를 입력합니다.'},
-     {icon:'🔔',label:'알림 채널 설정',text:'설정 → 알림에서 이메일 알림 채널을 설정합니다.'},
-   ]},
-  {badge:'STEP 6',icon:'📊',title:'대시보드 모니터링',
+  {badge:'STEP 5',icon:'📊',title:'대시보드 모니터링',
    desc:'전체 매체 성과를 한눈에 모니터링하고 기간 비교 분석을 활용하세요.',
    items:[
      {icon:'📅',label:'기간 설정',text:'상단 날짜 선택기로 조회 기간을 설정합니다. "동기간 비교"로 이전 기간과 자동 비교됩니다.'},
-     {icon:'⚠️',label:'이상 감지',text:'KPI 목표 이탈 시 대시보드 상단에 이상 감지 배너가 표시됩니다.'},
      {icon:'💡',label:'인사이트 복사',text:'하단 인사이트 섹션의 복사 버튼으로 분석 내용을 보고서에 바로 활용하세요.'},
    ]},
-  {badge:'STEP 7',icon:'📈',title:'미디어 리포트 활용',
+  {badge:'STEP 6',icon:'📈',title:'미디어 리포트 활용',
    desc:'매체별 상세 성과를 분석하고 일별·주별·월별 추세를 확인합니다.',
    items:[
      {icon:'📡',label:'매체 선택',text:'"미디어 리포트" 메뉴에서 매체를 선택하고 조회 버튼을 누릅니다.'},
      {icon:'📱',label:'디바이스별 보기',text:'디바이스 필터(전체/모바일/PC/태블릿)로 기기별 성과를 분리 확인합니다.'},
      {icon:'📥',label:'다운로드',text:'엑셀 · PDF 버튼으로 리포트를 내보냅니다.'},
    ]},
-  {badge:'STEP 8',icon:'⬇️',title:'Raw 데이터 다운로드',
+  {badge:'STEP 7',icon:'⬇️',title:'Raw 데이터 다운로드',
    desc:'원시 데이터를 세밀하게 분석하거나 외부 보고서 작성에 활용합니다.',
    items:[
      {icon:'🔍',label:'조회 조건 설정',text:'"Raw 다운로드" 메뉴에서 기간·매체를 선택합니다.'},
